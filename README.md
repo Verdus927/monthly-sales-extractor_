@@ -1,4 +1,4 @@
-# monthly-sales-extractor.html
+# monthly-sales-extractor
 # 월 매출 통계 추출기
 
 위사 주문 엑셀을 올리면 매출 통계를 자동으로 뽑아주는 도구.
