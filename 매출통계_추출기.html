@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>월 매출 통계 추출기 · 베스트꽃자재연구소</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+  :root{
+    --navy:#1F3864; --navy2:#2E5496; --blue:#5B9BD5; --green:#70AD47;
+    --amber:#FFC000; --orange:#ED7D31; --gray:#A5A5A5; --purple:#7A3FF2;
+    --line:#e3e6ec; --bg:#f4f6f9; --txt:#222; --muted:#6b7280;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--txt);
+    font-family:'GmarketSansMedium','Pretendard','맑은 고딕',system-ui,sans-serif;
+    font-size:14px;line-height:1.6;padding:0 0 60px}
+  header{background:var(--navy);color:#fff;text-align:center;padding:22px 16px}
+  header h1{margin:0;font-size:21px;font-weight:700}
+  header p{margin:6px 0 0;font-size:12.5px;opacity:.85}
+  .wrap{max-width:1000px;margin:0 auto;padding:0 16px}
+  .drop{margin:22px 0;background:#fff;border:2px dashed #b9c2d0;border-radius:12px;
+    padding:30px 20px;text-align:center;cursor:pointer;transition:.15s}
+  .drop:hover,.drop.over{border-color:var(--purple);background:#faf8ff}
+  .drop b{color:var(--navy)}
+  .drop small{display:block;color:var(--muted);margin-top:8px;font-size:12.5px}
+  #fileInfo{font-size:12.5px;color:var(--muted);margin-top:10px}
+  .hidden{display:none}
+  .warn{background:#fff6e6;border:1px solid #f0c36d;color:#8a5a00;border-radius:10px;
+    padding:12px 14px;margin:14px 0;font-size:13px}
+  .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin:18px 0}
+  .kpi{background:#fff;border:1px solid var(--line);border-radius:12px;padding:14px 16px}
+  .kpi .lbl{font-size:12.5px;color:var(--muted)}
+  .kpi .val{font-size:22px;font-weight:700;color:var(--navy);margin-top:4px}
+  .kpi .sub{font-size:12px;color:var(--muted);margin-top:2px}
+  section{background:#fff;border:1px solid var(--line);border-radius:12px;padding:18px 18px 20px;margin:16px 0}
+  section h2{margin:0 0 4px;font-size:16px;color:var(--navy);display:flex;align-items:center;gap:8px}
+  section .desc{font-size:12.5px;color:var(--muted);margin:0 0 14px}
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  th,td{padding:8px 10px;border-bottom:1px solid var(--line);text-align:right}
+  th:first-child,td:first-child{text-align:left}
+  thead th{background:var(--navy);color:#fff;font-weight:600;border:none}
+  tfoot td{font-weight:700;background:#f0f3f8;border-top:2px solid var(--navy)}
+  .bar-cell{position:relative}
+  .pct{display:inline-block;min-width:46px}
+  .btnrow{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px}
+  button{font-family:inherit;font-size:13px;border:1px solid #c7ced8;background:#fff;color:var(--navy);
+    border-radius:8px;padding:8px 14px;cursor:pointer;transition:.12s}
+  button:hover{background:#eef2f8}
+  button.primary{background:var(--purple);color:#fff;border-color:var(--purple)}
+  button.primary:hover{filter:brightness(.93)}
+  .chartbox{position:relative;height:300px;margin-top:6px}
+  .fee-inputs{display:flex;flex-wrap:wrap;gap:14px;align-items:center;margin-bottom:12px;font-size:13px;color:var(--muted)}
+  .fee-inputs input{width:80px;font-family:inherit;font-size:13px;padding:5px 8px;border:1px solid #c7ced8;border-radius:6px;text-align:right}
+  .toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:var(--navy);color:#fff;
+    padding:10px 18px;border-radius:8px;font-size:13px;opacity:0;transition:.2s;pointer-events:none}
+  .toast.show{opacity:1}
+  .legend{display:flex;flex-wrap:wrap;gap:10px 16px;margin-bottom:8px;font-size:12px;color:var(--muted)}
+  .legend span{display:flex;align-items:center;gap:5px}
+  .legend i{width:11px;height:11px;border-radius:2px;display:inline-block}
+  .cat-head{color:var(--navy);font-weight:700;background:#eef2f8 !important}
+</style>
+</head>
+<body>
+<header>
+  <h1>월 매출 통계 추출기</h1>
+  <p>베스트꽃자재연구소</p>
+</header>
+
+<div class="wrap">
+  <div class="drop" id="drop">
+    <b>여기를 클릭하거나 파일을 끌어다 놓으세요</b>
+    <small>위사에서 받은 엑셀(.xlsx)을 주문번호 기준, 주문상품 기준으로 2개 올려주세요. 시트 종류는 칼럼을 보고 자동 인식합니다.</small>
+    <input type="file" id="file" accept=".xlsx,.xls" multiple class="hidden">
+    <div id="fileInfo"></div>
+  </div>
+
+  <div id="warnBox"></div>
+  <div id="result" class="hidden"></div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const $ = s => document.querySelector(s);
+const drop = $('#drop'), fileInput = $('#file');
+let charts = [];
+
+drop.addEventListener('click', ()=>fileInput.click());
+['dragover','dragenter'].forEach(e=>drop.addEventListener(e,ev=>{ev.preventDefault();drop.classList.add('over')}));
+['dragleave','drop'].forEach(e=>drop.addEventListener(e,ev=>{ev.preventDefault();drop.classList.remove('over')}));
+drop.addEventListener('drop', ev=>handleFiles(ev.dataTransfer.files));
+fileInput.addEventListener('change', ev=>handleFiles(ev.target.files));
+
+function toast(msg){const t=$('#toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),1600);}
+function num(v){ if(v==null) return 0; if(typeof v==='number') return v;
+  const n=parseFloat(String(v).replace(/[^0-9.\-]/g,'')); return isNaN(n)?0:n; }
+function won(n){ return Math.round(n).toLocaleString('ko-KR'); }
+function findKey(obj, subs){ for(const k of Object.keys(obj)){ for(const s of subs){ if(String(k).includes(s)) return k; } } return null; }
+
+let DATA = null; // {orderRows, productRows}
+
+function handleFiles(files){
+  if(!files.length) return;
+  $('#fileInfo').textContent = '읽는 중...';
+  let orderRows=[], productRows=[], names=[], pending=files.length;
+  Array.from(files).forEach(f=>{
+    names.push(f.name);
+    const reader = new FileReader();
+    reader.onload = e=>{
+      try{
+        const wb = XLSX.read(new Uint8Array(e.target.result), {type:'array'});
+        wb.SheetNames.forEach(sn=>{
+          const rows = XLSX.utils.sheet_to_json(wb.Sheets[sn], {defval:null});
+          if(!rows.length) return;
+          const sample = rows[0];
+          const hasCat = findKey(sample, ['대분류']);
+          const hasPay = findKey(sample, ['결제방법']) || findKey(sample, ['사용예치금','예치금']);
+          const hasReal = findKey(sample, ['실결제']);
+          const hasNo = findKey(sample, ['주문번호']);
+          if(hasCat && hasReal){ productRows = productRows.concat(rows); }
+          else if(hasPay && hasReal && hasNo){ orderRows = orderRows.concat(rows); }
+        });
+      }catch(err){ console.error(err); }
+      if(--pending===0){ DATA={orderRows, productRows}; $('#fileInfo').textContent='파일: '+names.join(', '); compute(); }
+    };
+    reader.readAsArrayBuffer(f);
+  });
+}
+
+function compute(){
+  const {orderRows, productRows} = DATA;
+  const warns = [];
+  if(!orderRows.length && !productRows.length){ $('#warnBox').innerHTML='<div class="warn">인식 가능한 시트를 찾지 못했어요. 위사에서 받은 원본 엑셀인지 확인해주세요.</div>'; return; }
+  if(!orderRows.length) warns.push('주문번호 기준 시트가 없어 총거래액·결제방법 통계는 표시되지 않고, 대분류·입점사 금액은 보정 전(예치금 미차감) 값입니다.');
+  if(!productRows.length) warns.push('주문상품 기준 시트가 없어 대분류·입점사·세부상품 통계는 표시되지 않습니다.');
+
+  // ---- 주문번호 기준 ----
+  let totalReal=0, orderCount=0, depositTotal=0, payAgg={};
+  let netByOrder={};
+  if(orderRows.length){
+    const s=orderRows[0];
+    const kNo=findKey(s,['주문번호']), kReal=findKey(s,['실결제']),
+          kPay=findKey(s,['결제방법']), kDep=findKey(s,['사용예치금','예치금']);
+    orderRows.forEach(r=>{
+      const real=num(r[kReal]); totalReal+=real; orderCount++;
+      depositTotal += kDep?num(r[kDep]):0;
+      if(kNo){ const o=r[kNo]; netByOrder[o]=(netByOrder[o]||0)+real; }
+      const pm = kPay? (String(r[kPay]||'').trim()||'(미지정)') : '(미지정)';
+      if(!payAgg[pm]) payAgg[pm]={cnt:0,amt:0}; payAgg[pm].cnt++; payAgg[pm].amt+=real;
+    });
+  }
+
+  // ---- 주문상품 기준: 비례배분 ----
+  let catAgg={}, vendAgg={}, prodByCat={}, totalQty=0;
+  let allocTotal=0, unmatched=0;
+  if(productRows.length){
+    const s=productRows[0];
+    const kNo=findKey(s,['주문번호']), kReal=findKey(s,['실결제']),
+          kCat=findKey(s,['대분류']), kVen=findKey(s,['입점사']),
+          kQty=findKey(s,['주문수량','수량']), kUnit=findKey(s,['상품단가','단가']),
+          kName=findKey(s,['주문상품','상품명']);
+    const wsum={}, cntLines={};
+    productRows.forEach(r=>{
+      let w=num(r[kReal]); if(!(w>0)) w=num(r[kUnit])*num(r[kQty]); r.__w=w;
+      const o=r[kNo]; wsum[o]=(wsum[o]||0)+w; cntLines[o]=(cntLines[o]||0)+1;
+    });
+    productRows.forEach(r=>{
+      const o=r[kNo]; let alloc;
+      if(o in netByOrder){ alloc = wsum[o]>0 ? netByOrder[o]*(r.__w/wsum[o]) : netByOrder[o]/cntLines[o]; }
+      else { alloc = num(r[kReal]); unmatched+=alloc; }
+      allocTotal+=alloc;
+      const cat = String(r[kCat]||'(미분류)').trim()||'(미분류)';
+      let ven = kVen? String(r[kVen]==null?'':r[kVen]).trim() : '';
+      if(!ven) ven='제일무역(자사)';
+      const qty=num(r[kQty]);
+      totalQty+=qty;
+      if(!catAgg[cat]) catAgg[cat]={amt:0,qty:0}; catAgg[cat].amt+=alloc; catAgg[cat].qty+=qty;
+      if(!vendAgg[ven]) vendAgg[ven]={amt:0,qty:0}; vendAgg[ven].amt+=alloc; vendAgg[ven].qty+=qty;
+      const nm = kName? String(r[kName]||'').trim() : '(이름없음)';
+      if(!prodByCat[cat]) prodByCat[cat]={};
+      if(!prodByCat[cat][nm]) prodByCat[cat][nm]={amt:0,qty:0};
+      prodByCat[cat][nm].amt+=alloc; prodByCat[cat][nm].qty+=qty;
+    });
+    if(!orderRows.length) totalReal = allocTotal;
+  }
+  if(unmatched>0) warns.push('주문상품 시트에 있지만 주문번호 시트에는 없는 주문이 있어, 해당 '+won(unmatched)+'원은 보정 없이 합산했습니다.');
+
+  render({totalReal, orderCount, depositTotal, payAgg, catAgg, vendAgg, prodByCat, totalQty, warns});
+}
+
+function sortDesc(agg){ return Object.entries(agg).sort((a,b)=>b[1].amt-a[1].amt); }
+const PAL=['#5B9BD5','#70AD47','#FFC000','#ED7D31','#A5A5A5','#2E5496','#9DC3E6','#c0504d','#8064a2'];
+// 카테고리별 고정 색 (작년/올해 색 통일용). 여기 색만 바꾸면 차트·범례에 같이 반영됩니다.
+const CATCOLOR={'리본':'#5B9BD5','대국':'#70AD47','화훼부자재':'#FFC000','조화':'#ED7D31','생화':'#A5A5A5'};
+function catColor(name,i){ return CATCOLOR[String(name).trim()] || PAL[i%PAL.length]; }
+
+function render(R){
+  charts.forEach(c=>c.destroy()); charts=[];
+  $('#warnBox').innerHTML = R.warns.map(w=>'<div class="warn">⚠ '+w+'</div>').join('');
+  const res = $('#result'); res.classList.remove('hidden');
+
+  const catRows = sortDesc(R.catAgg), venRows = sortDesc(R.vendAgg);
+  const catTot = catRows.reduce((s,[,v])=>s+v.amt,0);
+  const venTot = venRows.reduce((s,[,v])=>s+v.amt,0);
+
+  let html = '';
+  // KPIs
+  html += '<div class="kpis">'+
+    kpi('사이트 총거래액', won(R.totalReal)+'원', '주문번호 기준 실결제') +
+    kpi('총 주문건수', R.orderCount.toLocaleString()+'건', '') +
+    kpi('총 판매수량', R.totalQty.toLocaleString()+'개', '주문상품 기준') +
+    kpi('사용 예치금', won(R.depositTotal)+'원', '실결제에서 제외됨') +
+  '</div>';
+
+  // 결제방법별
+  if(Object.keys(R.payAgg).length){
+    html += '<section><h2>결제방법별 실결제액 · 수수료 추정</h2>'+
+      '<p class="desc">수수료율은 직접 바꿀 수 있어요. (신용카드 %, 무통장 건당 원)</p>'+
+      '<div class="fee-inputs">'+
+        '카드 수수료율 <input id="cardRate" type="number" step="0.1" value="3.5">% &nbsp; '+
+        '무통장 건당 <input id="bankFee" type="number" step="50" value="400">원'+
+      '</div><div id="payTableBox"></div>'+
+      '<div class="btnrow"><button onclick="copyTable(\'payTable\')">표 복사</button></div></section>';
+  }
+  // 대분류별
+  if(catRows.length){
+    html += '<section><h2>상품 대분류별 판매액 · 수량</h2>'+
+      '<p class="desc">총거래액 기준으로 보정(예치금·할인 반영)되어 합계가 정산과 일치합니다.</p>'+
+      tableHTML('catTable', ['대분류','거래액','비중','수량'], catRows.map(([k,v])=>[k, v.amt, v.amt/catTot, v.qty]), catTot, R.totalQty)+
+      '<div class="legend" id="catLegend"></div><div class="chartbox"><canvas id="catChart" role="img" aria-label="대분류별 거래액 비중 도넛 차트"></canvas></div>'+
+      '<div class="btnrow"><button onclick="copyTable(\'catTable\')">표 복사</button></div></section>';
+  }
+  // 입점사별
+  if(venRows.length){
+    html += '<section><h2>입점사별 판매액 · 수량</h2>'+
+      '<p class="desc">빈 입점사명은 자사(제일무역)로 표기됩니다.</p>'+
+      tableHTML('venTable', ['입점사','거래액','비중','수량'], venRows.map(([k,v])=>[k, v.amt, v.amt/venTot, v.qty]), venTot, venRows.reduce((s,[,v])=>s+v.qty,0))+
+      '<div class="chartbox" style="height:'+Math.max(260, venRows.length*40+80)+'px"><canvas id="venChart" role="img" aria-label="입점사별 거래액 가로 막대 차트"></canvas></div>'+
+      '<div class="btnrow"><button onclick="copyTable(\'venTable\')">표 복사</button></div></section>';
+  }
+  // 세부상품 TOP
+  if(Object.keys(R.prodByCat).length){
+    let trs='';
+    catRows.forEach(([cat])=>{
+      const items = Object.entries(R.prodByCat[cat]).sort((a,b)=>b[1].amt-a[1].amt).slice(0,5);
+      trs += '<tr><td class="cat-head" colspan="3">'+cat+'</td></tr>';
+      items.forEach(([nm,v])=> trs += '<tr><td>'+esc(nm)+'</td><td>'+won(v.amt)+'</td><td>'+v.qty+'</td></tr>');
+    });
+    html += '<section><h2>대분류별 세부 상품 TOP 5</h2>'+
+      '<p class="desc">카테고리 안에서 잘 팔린 상품 순위입니다.</p>'+
+      '<table id="prodTable"><thead><tr><th>상품명</th><th>거래액</th><th>수량</th></tr></thead><tbody>'+trs+'</tbody></table>'+
+      '<div class="btnrow"><button onclick="copyTable(\'prodTable\')">표 복사</button></div></section>';
+  }
+
+  html += '<div class="btnrow" style="margin:20px 0"><button class="primary" onclick="downloadExcel()">📥 전체 통계 엑셀로 다운로드</button></div>';
+  res.innerHTML = html;
+
+  // 결제방법 표(수수료 인풋 연동)
+  if($('#payTableBox')){
+    renderPay(R.payAgg);
+    $('#cardRate').addEventListener('input',()=>renderPay(R.payAgg));
+    $('#bankFee').addEventListener('input',()=>renderPay(R.payAgg));
+  }
+  // 차트
+  if(catRows.length) drawDonut(catRows, catTot);
+  if(venRows.length) drawBar(venRows);
+  window.__R = R; window.__catRows=catRows; window.__venRows=venRows; window.__catTot=catTot; window.__venTot=venTot;
+}
+
+function kpi(l,v,s){ return '<div class="kpi"><div class="lbl">'+l+'</div><div class="val">'+v+'</div>'+(s?'<div class="sub">'+s+'</div>':'')+'</div>'; }
+function esc(s){ return String(s).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c])); }
+
+function tableHTML(id, heads, rows, totAmt, totQty){
+  let h='<table id="'+id+'"><thead><tr>'+heads.map(x=>'<th>'+x+'</th>').join('')+'</tr></thead><tbody>';
+  rows.forEach(r=>{ h+='<tr><td>'+esc(r[0])+'</td><td>'+won(r[1])+'</td><td><span class="pct">'+(r[2]*100).toFixed(1)+'%</span></td><td>'+r[3].toLocaleString()+'</td></tr>'; });
+  h+='</tbody><tfoot><tr><td>합계</td><td>'+won(totAmt)+'</td><td>100%</td><td>'+totQty.toLocaleString()+'</td></tr></tfoot></table>';
+  return h;
+}
+
+function renderPay(payAgg){
+  const cr = num($('#cardRate').value)/100, bf = num($('#bankFee').value);
+  const rows = Object.entries(payAgg).sort((a,b)=>b[1].amt-a[1].amt);
+  let tot={cnt:0,amt:0,fee:0};
+  let body='';
+  rows.forEach(([pm,v])=>{
+    let fee=0;
+    if(pm.includes('카드')) fee=v.amt*cr;
+    else if(pm.includes('무통장')) fee=v.cnt*bf;
+    const net=v.amt-fee;
+    tot.cnt+=v.cnt; tot.amt+=v.amt; tot.fee+=fee;
+    body+='<tr><td>'+esc(pm)+'</td><td>'+v.cnt.toLocaleString()+'</td><td>'+won(v.amt)+'</td><td>'+won(fee)+'</td><td>'+won(net)+'</td></tr>';
+  });
+  $('#payTableBox').innerHTML='<table id="payTable"><thead><tr><th>결제방법</th><th>건수</th><th>실결제액</th><th>수수료(추정)</th><th>수수료 제외</th></tr></thead><tbody>'+body+
+    '</tbody><tfoot><tr><td>계</td><td>'+tot.cnt.toLocaleString()+'</td><td>'+won(tot.amt)+'</td><td>'+won(tot.fee)+'</td><td>'+won(tot.amt-tot.fee)+'</td></tr></tfoot></table>';
+}
+
+function drawDonut(rows, tot){
+  $('#catLegend').innerHTML = rows.map((r,i)=>'<span><i style="background:'+catColor(r[0],i)+'"></i>'+esc(r[0])+' '+(r[1].amt/tot*100).toFixed(1)+'%</span>').join('');
+  charts.push(new Chart($('#catChart'),{type:'doughnut',
+    data:{labels:rows.map(r=>r[0]),datasets:[{data:rows.map(r=>Math.round(r[1].amt)),backgroundColor:rows.map((r,i)=>catColor(r[0],i)),borderColor:'#fff',borderWidth:2}]},
+    options:{responsive:true,maintainAspectRatio:false,cutout:'58%',plugins:{legend:{display:false},
+      tooltip:{callbacks:{label:c=>c.label+': '+won(c.raw)+'원'}}}}}));
+}
+function drawBar(rows){
+  charts.push(new Chart($('#venChart'),{type:'bar',
+    data:{labels:rows.map(r=>r[0]),datasets:[{data:rows.map(r=>Math.round(r[1].amt)),backgroundColor:'#2E5496',borderRadius:3}]},
+    options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},
+      tooltip:{callbacks:{label:c=>won(c.raw)+'원'}}},
+      scales:{x:{ticks:{callback:v=>(v/10000).toLocaleString()+'만'}},y:{grid:{display:false}}}}}));
+}
+
+function copyTable(id){
+  const t=$('#'+id); let out=[];
+  t.querySelectorAll('tr').forEach(tr=>{
+    const cells=[...tr.querySelectorAll('th,td')].map(td=>td.textContent.replace(/\s+/g,' ').trim());
+    out.push(cells.join('\t'));
+  });
+  navigator.clipboard.writeText(out.join('\n')).then(()=>toast('표를 복사했어요. 엑셀에 붙여넣기(Ctrl+V) 하세요.'));
+}
+
+function downloadExcel(){
+  const R=window.__R, catRows=window.__catRows, venRows=window.__venRows, catTot=window.__catTot, venTot=window.__venTot;
+  const wb=XLSX.utils.book_new();
+  const summary=[['항목','값'],
+    ['사이트 총거래액(주문번호 기준)',Math.round(R.totalReal)],
+    ['총 주문건수',R.orderCount],
+    ['총 판매수량',R.totalQty],
+    ['사용 예치금',Math.round(R.depositTotal)],
+    ['추출일',new Date().toISOString().slice(0,10)]];
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(summary), '요약');
+
+  if($('#payTable')){
+    const aoa=[];
+    $('#payTable').querySelectorAll('tr').forEach(tr=>{
+      aoa.push([...tr.querySelectorAll('th,td')].map((td,i)=> i===0?td.textContent.trim():num(td.textContent)));
+    });
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(aoa), '결제방법별');
+  }
+  if(catRows.length){
+    const aoa=[['대분류','거래액','비중(%)','수량']];
+    catRows.forEach(([k,v])=>aoa.push([k,Math.round(v.amt),+(v.amt/catTot*100).toFixed(1),v.qty]));
+    aoa.push(['합계',Math.round(catTot),100,R.totalQty]);
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(aoa), '대분류별');
+  }
+  if(venRows.length){
+    const aoa=[['입점사','거래액','비중(%)','수량']];
+    const vq=venRows.reduce((s,[,v])=>s+v.qty,0);
+    venRows.forEach(([k,v])=>aoa.push([k,Math.round(v.amt),+(v.amt/venTot*100).toFixed(1),v.qty]));
+    aoa.push(['합계',Math.round(venTot),100,vq]);
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(aoa), '입점사별');
+  }
+  if(Object.keys(R.prodByCat).length){
+    const aoa=[['대분류','상품명','거래액','수량']];
+    catRows.forEach(([cat])=>{
+      Object.entries(R.prodByCat[cat]).sort((a,b)=>b[1].amt-a[1].amt).slice(0,5)
+        .forEach(([nm,v])=>aoa.push([cat,nm,Math.round(v.amt),v.qty]));
+    });
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(aoa), '세부상품TOP');
+  }
+  XLSX.writeFile(wb, '매출통계_'+new Date().toISOString().slice(0,10).replace(/-/g,'')+'.xlsx');
+  toast('엑셀을 다운로드했어요.');
+}
+</script>
+</body>
+</html>
