@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>월 매출 통계 추출기 · 베스트꽃자재연구소</title>
+<title>월간 매출 보고서 · 베스트꽃자재연구소</title>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%231F3864'/%3E%3Crect x='7' y='17' width='4.5' height='8' rx='1' fill='%235B9BD5'/%3E%3Crect x='13.75' y='11' width='4.5' height='14' rx='1' fill='%2370AD47'/%3E%3Crect x='20.5' y='6' width='4.5' height='19' rx='1' fill='%23FFC000'/%3E%3C/svg%3E">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
@@ -12,380 +12,765 @@
     --navy:#1F3864; --navy2:#2E5496; --blue:#5B9BD5; --green:#70AD47;
     --amber:#FFC000; --orange:#ED7D31; --gray:#A5A5A5; --purple:#7A3FF2;
     --line:#e3e6ec; --bg:#f4f6f9; --txt:#222; --muted:#6b7280;
+    --ok:#2e7d32; --okbg:#e8f5e9; --wn:#8a5a00; --wnbg:#fff6e6; --no:#6b7280; --nobg:#f1f3f6; --bad:#b42318; --badbg:#fdecea;
   }
   *{box-sizing:border-box}
   body{margin:0;background:var(--bg);color:var(--txt);
-    font-family:'GmarketSansMedium','Pretendard','맑은 고딕',system-ui,sans-serif;
+    font-family:'Pretendard','맑은 고딕','Malgun Gothic',system-ui,sans-serif;
     font-size:14px;line-height:1.6;padding:0 0 60px}
   header{background:var(--navy);color:#fff;text-align:center;padding:22px 16px}
   header h1{margin:0;font-size:21px;font-weight:700}
   header p{margin:6px 0 0;font-size:12.5px;opacity:.85}
   .wrap{max-width:1000px;margin:0 auto;padding:0 16px}
-  .drop{margin:22px 0;background:#fff;border:2px dashed #b9c2d0;border-radius:12px;
-    padding:30px 20px;text-align:center;cursor:pointer;transition:.15s}
+  .panel{background:#fff;border:1px solid var(--line);border-radius:12px;padding:16px 18px;margin:16px 0}
+  .panel h3{margin:0 0 10px;font-size:15px;color:var(--navy)}
+  .row{display:flex;flex-wrap:wrap;gap:10px 18px;align-items:center;font-size:13px;color:var(--muted)}
+  .row label{display:flex;align-items:center;gap:6px}
+  input[type=number],input[type=month]{font-family:inherit;font-size:13px;padding:5px 8px;border:1px solid #c7ced8;border-radius:6px}
+  input[type=number]{width:90px;text-align:right}
+  .drop{background:#fff;border:2px dashed #b9c2d0;border-radius:12px;
+    padding:24px 20px;text-align:center;cursor:pointer;transition:.15s;margin:16px 0}
   .drop:hover,.drop.over{border-color:var(--purple);background:#faf8ff}
   .drop b{color:var(--navy)}
-  .drop small{display:block;color:var(--muted);margin-top:8px;font-size:12.5px}
-  #fileInfo{font-size:12.5px;color:var(--muted);margin-top:10px}
+  .drop small{display:block;color:var(--muted);margin-top:6px;font-size:12.5px}
+  .chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px;justify-content:center}
+  .chip{font-size:12px;border-radius:99px;padding:2px 10px;background:var(--nobg);color:var(--no)}
+  .chip.ok{background:var(--okbg);color:var(--ok)} .chip.bad{background:var(--badbg);color:var(--bad)}
   .hidden{display:none}
-  .warn{background:#fff6e6;border:1px solid #f0c36d;color:#8a5a00;border-radius:10px;
-    padding:12px 14px;margin:14px 0;font-size:13px}
-  .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin:18px 0}
+  .checklist{list-style:none;margin:0;padding:0}
+  .checklist li{display:grid;grid-template-columns:26px 1fr;gap:4px 8px;padding:8px 0;border-bottom:1px solid var(--line);font-size:13px}
+  .checklist li:last-child{border-bottom:none}
+  .checklist .ic{font-size:15px;line-height:1.4}
+  .checklist .nm{font-weight:600;color:var(--txt)}
+  .checklist .ds{grid-column:2;color:var(--muted);font-size:12.5px}
+  .checklist .ds b{color:var(--txt);font-weight:600}
+  .progress{font-size:13px;color:var(--muted);margin-bottom:6px}
+  .progress b{color:var(--navy)}
+  .warn{background:var(--wnbg);border:1px solid #f0c36d;color:var(--wn);border-radius:10px;padding:10px 14px;margin:10px 0;font-size:13px}
+  .rpt-head{background:var(--navy);color:#fff;border-radius:12px;padding:18px 20px;margin:22px 0 0}
+  .rpt-head h2{margin:0;font-size:20px}
+  .rpt-head p{margin:4px 0 0;font-size:13px;opacity:.85}
+  .rpt-head .miss{margin-top:8px;font-size:12.5px;background:rgba(255,255,255,.14);border-radius:8px;padding:6px 10px;display:inline-block}
+  .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin:14px 0}
   .kpi{background:#fff;border:1px solid var(--line);border-radius:12px;padding:14px 16px}
   .kpi .lbl{font-size:12.5px;color:var(--muted)}
-  .kpi .val{font-size:22px;font-weight:700;color:var(--navy);margin-top:4px}
-  .kpi .sub{font-size:12px;color:var(--muted);margin-top:2px}
-  section{background:#fff;border:1px solid var(--line);border-radius:12px;padding:18px 18px 20px;margin:16px 0}
-  section h2{margin:0 0 4px;font-size:16px;color:var(--navy);display:flex;align-items:center;gap:8px}
-  section .desc{font-size:12.5px;color:var(--muted);margin:0 0 14px}
-  table{width:100%;border-collapse:collapse;font-size:13px}
-  th,td{padding:8px 10px;border-bottom:1px solid var(--line);text-align:right}
+  .kpi .val{font-size:22px;font-weight:700;color:var(--navy);margin-top:2px;font-variant-numeric:tabular-nums}
+  .kpi .cmp{font-size:12px;color:var(--muted);margin-top:4px;display:grid;grid-template-columns:auto 1fr auto;gap:0 8px}
+  .up{color:#c0392b} .down{color:#1f5fbf}
+  section{background:#fff;border:1px solid var(--line);border-radius:12px;padding:18px 18px 20px;margin:14px 0}
+  section h2{margin:0 0 4px;font-size:16px;color:var(--navy)}
+  section .desc{font-size:12.5px;color:var(--muted);margin:0 0 12px}
+  .grid2{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:18px}
+  .grid2>*{min-width:0}
+  @media (max-width:760px){.grid2{grid-template-columns:1fr}}
+  .tblwrap{overflow-x:auto}
+  table{width:100%;border-collapse:collapse;font-size:13px;font-variant-numeric:tabular-nums}
+  th,td{padding:7px 10px;border-bottom:1px solid var(--line);text-align:right;white-space:nowrap}
   th:first-child,td:first-child{text-align:left}
-  #payTable td:nth-child(2),#payTable th:nth-child(2){text-align:left}
+  td.l,th.l{text-align:left;white-space:normal}
   thead th{background:var(--navy);color:#fff;font-weight:600;border:none}
-  tfoot td{font-weight:700;background:#f0f3f8;border-top:2px solid var(--navy)}
-  .bar-cell{position:relative}
-  .pct{display:inline-block;min-width:46px}
-  .btnrow{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px}
+  tfoot td,tr.tot td{font-weight:700;background:#f0f3f8;border-top:2px solid var(--navy)}
+  tr.sub td{background:#f7f8fb;font-weight:600}
+  tr.star td{font-weight:700;color:var(--navy);background:#eef2f8}
+  .empty{color:var(--muted);font-size:13px;background:var(--nobg);border-radius:8px;padding:14px;text-align:center}
+  .badge{display:inline-block;font-size:11px;border-radius:6px;padding:0 6px;margin-left:6px;vertical-align:middle;background:var(--wnbg);color:var(--wn);font-weight:600}
+  .btnrow{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
   button{font-family:inherit;font-size:13px;border:1px solid #c7ced8;background:#fff;color:var(--navy);
     border-radius:8px;padding:8px 14px;cursor:pointer;transition:.12s}
   button:hover{background:#eef2f8}
   button.primary{background:var(--purple);color:#fff;border-color:var(--purple)}
   button.primary:hover{filter:brightness(.93)}
-  .chartbox{position:relative;height:300px;margin-top:6px}
-  .fee-inputs{display:flex;flex-wrap:wrap;gap:14px;align-items:center;margin-bottom:12px;font-size:13px;color:var(--muted)}
-  .fee-inputs input{width:80px;font-family:inherit;font-size:13px;padding:5px 8px;border:1px solid #c7ced8;border-radius:6px;text-align:right}
-  .toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:var(--navy);color:#fff;
-    padding:10px 18px;border-radius:8px;font-size:13px;opacity:0;transition:.2s;pointer-events:none}
-  .toast.show{opacity:1}
-  .legend{display:flex;flex-wrap:wrap;gap:10px 16px;margin-bottom:8px;font-size:12px;color:var(--muted)}
+  button.sm{font-size:12px;padding:5px 10px}
+  .chartbox{position:relative;height:280px;margin-top:6px}
+  .chartbox img.pimg{display:none}
+  .legend{display:flex;flex-wrap:wrap;gap:6px 14px;margin:8px 0 4px;font-size:12px;color:var(--muted)}
   .legend span{display:flex;align-items:center;gap:5px}
   .legend i{width:11px;height:11px;border-radius:2px;display:inline-block}
   .cat-head{color:var(--navy);font-weight:700;background:#eef2f8 !important}
+  .toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:var(--navy);color:#fff;
+    padding:10px 18px;border-radius:8px;font-size:13px;opacity:0;transition:.2s;pointer-events:none}
+  .toast.show{opacity:1}
+  .note{font-size:12px;color:var(--muted);margin-top:8px}
+  @media print{
+    @page{size:A4;margin:10mm}
+    body{background:#fff;padding:0;font-size:11px}
+    header,.noprint,.btnrow,.toast{display:none !important}
+    .wrap{max-width:none;padding:0}
+    .rpt-head{margin:0 0 6px;border-radius:6px;padding:12px 16px}
+    section{border:1px solid var(--line);padding:10px 12px;margin:0 0 8px;break-inside:avoid;border-radius:6px}
+    .kpi{padding:8px 10px}
+    .kpi .val{font-size:17px}
+    .pb{break-before:page}
+    table{font-size:10.5px}
+    th,td{padding:4px 6px}
+    .chartbox{height:auto !important}
+    .chartbox canvas{display:none !important}
+    .chartbox img.pimg{display:block;width:100%;max-height:230px;object-fit:contain}
+    .grid2{grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:10px}
+    th,td{white-space:normal}
+    .tblwrap{overflow:visible}
+    *{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  }
 </style>
 </head>
 <body>
 <header>
-  <h1>월 매출 통계 추출기</h1>
-  <p>베스트꽃자재연구소</p>
+  <h1>월간 매출 보고서</h1>
+  <p>베스트꽃자재연구소 · 자료 파일을 넣으면 표·그래프가 자동으로 만들어지고 PDF로 저장할 수 있어요</p>
 </header>
 
 <div class="wrap">
-  <div class="drop" id="drop">
-    <b>여기를 클릭하거나 파일을 끌어다 놓으세요</b>
-    <small>위사에서 받은 엑셀(.xlsx)을 주문번호 기준, 주문상품 기준으로 2개 올려주세요. 시트 종류는 칼럼을 보고 자동 인식합니다.</small>
-    <input type="file" id="file" accept=".xlsx,.xls" multiple class="hidden">
-    <div id="fileInfo"></div>
+  <div class="panel noprint">
+    <h3>1. 보고 월 · 설정</h3>
+    <div class="row">
+      <label>보고 월 <input type="month" id="month"></label>
+      <label>카드 수수료율 <input type="number" id="cardRate" step="0.1">%</label>
+      <label>무통장 건당 <input type="number" id="bankFee" step="50">원</label>
+    </div>
+    <p class="note">설정 파일(매출보고_설정.xlsx)을 아래에 같이 넣으면 단가·원가·위사 이용료·월별 이력이 채워져요. 민감한 값은 이 페이지에 저장되지 않아요.</p>
   </div>
 
-  <div id="warnBox"></div>
-  <div id="result" class="hidden"></div>
+  <div class="drop noprint" id="drop">
+    <b>2. 여기를 클릭하거나 자료 파일을 끌어다 놓으세요 (여러 개 한 번에 가능)</b>
+    <small>위사 주문(주문번호·주문상품 기준) · 뿌리오 발송결과 · 위사 메세지 월별통계 · 입점사 정산 · 제일리본 발주서 · 환불 시트 · 3PL 거래내역서 · 설정 파일<br>
+    파일 종류는 칼럼을 보고 자동으로 알아내요. 파일은 이 브라우저 안에서만 읽고 어디에도 올라가지 않아요.</small>
+    <input type="file" id="file" accept=".xlsx,.xls,.csv" multiple class="hidden">
+    <div class="chips" id="chips"></div>
+  </div>
+
+  <div class="panel noprint">
+    <h3>3. 체크목록</h3>
+    <div class="progress" id="progress"></div>
+    <ul class="checklist" id="checklist"></ul>
+    <div class="row" style="margin-top:12px">
+      <label>팩스 발송 횟수 <input type="number" id="faxRounds" min="0" value="0">회</label>
+      <label>팩스 발송 건수 <input type="number" id="faxCount" min="0" value="0">건</label>
+      <label><input type="checkbox" id="faxNone"> 이번 달 팩스 없음</label>
+    </div>
+    <div class="row" style="margin-top:8px">
+      <label>3PL 청구 합계 직접 입력 <input type="number" id="tplManual" min="0" placeholder="파일 없을 때" style="width:130px">원</label>
+      <label><input type="checkbox" id="settleOk"> 입점사 정산은 이번 달 파일이 맞아요 (선정산 포함)</label>
+    </div>
+  </div>
+
+  <div class="btnrow noprint">
+    <button class="primary" onclick="printPDF()">🖨️ PDF로 저장</button>
+    <button onclick="downloadSettings()">⚙️ 설정 파일 내려받기 (이번 달 이력 반영)</button>
+    <button onclick="downloadExcel()">📥 보고서 표 엑셀로 내려받기</button>
+  </div>
+  <p class="note noprint">PDF로 저장: 인쇄 창에서 대상(프린터)을 <b>PDF로 저장</b>으로 고르고, 설정에서 <b>배경 그래픽</b>을 켜 주세요.</p>
+
+  <div id="report"></div>
 </div>
 
 <div class="toast" id="toast"></div>
 
 <script>
 const $ = s => document.querySelector(s);
-const drop = $('#drop'), fileInput = $('#file');
+const pad = n => String(n).padStart(2,'0');
 let charts = [];
 
+/* ---------------- 설정 (민감값은 기본값 없음, 설정 파일로만) ---------------- */
+const DEF = {장문단가:33, 포토단가:72, 팩스단가:40, 카드수수료율:3.5, 무통장건당:400, 롤당원가:0, 박스당롤:8, 테스트기준:2, 자사입점사:'제일무역', 자사상품키워드:'200야드'};
+const CFG_DESC = {장문단가:'뿌리오 장문 건당 단가(원)', 포토단가:'뿌리오 포토 건당 단가(원)', 팩스단가:'웹팩스 건당 예상 단가(원)',
+  카드수수료율:'PG 카드 수수료율(%)', 무통장건당:'무통장 입금 건당 수수료(원)', 롤당원가:'제일리본 롤당 원가(원, 통관비 제외)',
+  박스당롤:'제일리본 1박스 롤 수', 테스트기준:'뿌리오 이 건수 이하 발송은 테스트로 봄', 자사입점사:'환불 시트에서 자사상품을 찾을 입점사명', 자사상품키워드:'환불 시트에서 자사상품을 찾을 상품명 키워드'};
+let CFG = {...DEF}, WFEES = [], HIST = {}, settingsLoaded = false;
+
+/* ---------------- 상태 ---------------- */
+const F = {};   // 인식된 자료: wisaOrder, wisaProduct, ppurio, msg, settle, ribbon, refund, tpl
+const FILES = []; // {name, types:[]}
+
+/* ---------------- 공통 함수 ---------------- */
+function toast(msg){const t=$('#toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),1800);}
+function num(v){ if(v==null||v==='') return 0; if(typeof v==='number') return v;
+  const n=parseFloat(String(v).replace(/[^0-9.\-]/g,'')); return isNaN(n)?0:n; }
+function won(n){ return n==null||isNaN(n) ? '—' : Math.round(n).toLocaleString('ko-KR'); }
+function wonD(n){ return n==null ? '—' : (Math.round(n)===0 ? '-' : won(n)); }
+function pct(x,d=1){ return x==null||!isFinite(x) ? '—' : (x*100).toFixed(d)+'%'; }
+function esc(s){ return String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+function findKey(obj, subs){ for(const k of Object.keys(obj)){ for(const s of subs){ if(String(k).includes(s)) return k; } } return null; }
+const norm = s => String(s==null?'':s).replace(/\s+/g,'');
+function ymd(v){
+  if(v==null||v==='') return null;
+  if(typeof v==='number'){ if(v<20000||v>80000) return null; const d=XLSX.SSF.parse_date_code(v); return d?{y:d.y,m:d.m,d:d.d}:null; }
+  if(v instanceof Date) return {y:v.getFullYear(),m:v.getMonth()+1,d:v.getDate()};
+  const s=String(v).trim(); let m=s.match(/(\d{4})\s*[-.\/년]\s*(\d{1,2})\s*[-.\/월]\s*(\d{1,2})/);
+  if(m) return {y:+m[1],m:+m[2],d:+m[3]};
+  m=s.match(/^(\d{2})[-.\/](\d{1,2})[-.\/](\d{1,2})/); if(m) return {y:2000+(+m[1]),m:+m[2],d:+m[3]};
+  return null;
+}
+function ymOf(v){ // 'YYYY-MM'
+  const d=ymd(v); if(d) return d.y+'-'+pad(d.m);
+  const m=String(v==null?'':v).match(/(\d{4})\s*[-.\/년]\s*(\d{1,2})/); return m? m[1]+'-'+pad(+m[2]) : '';
+}
+const ymdStr = d => d ? d.y+'-'+pad(d.m)+'-'+pad(d.d) : '';
+function addMonth(ym, k){ let [y,m]=ym.split('-').map(Number); m+=k; while(m<1){m+=12;y--;} while(m>12){m-=12;y++;} return y+'-'+pad(m); }
+function monthLabel(ym){ const [y,m]=ym.split('-').map(Number); const last=new Date(y,m,0).getDate(); return `${y}년 ${m}월 1일 ~ ${m}월 ${last}일`; }
+function M(){ return $('#month').value; }
+
+/* 헤더 행 찾기: 필요한 글자가 모두 있는 행 */
+function findHeader(aoa, req, maxRow=15){
+  for(let i=0;i<Math.min(aoa.length,maxRow);i++){
+    const r=(aoa[i]||[]).map(norm);
+    if(req.every(q=>r.some(c=>c.includes(norm(q))))){
+      const col = (label)=>{ const L=norm(label); let j=r.findIndex(c=>c===L); if(j<0) j=r.findIndex(c=>c.includes(L)); return j; };
+      return {idx:i, col};
+    }
+  }
+  return null;
+}
+
+/* ---------------- 파일 읽기 ---------------- */
+const drop=$('#drop'), fileInput=$('#file');
 drop.addEventListener('click', ()=>fileInput.click());
 ['dragover','dragenter'].forEach(e=>drop.addEventListener(e,ev=>{ev.preventDefault();drop.classList.add('over')}));
 ['dragleave','drop'].forEach(e=>drop.addEventListener(e,ev=>{ev.preventDefault();drop.classList.remove('over')}));
 drop.addEventListener('drop', ev=>handleFiles(ev.dataTransfer.files));
-fileInput.addEventListener('change', ev=>handleFiles(ev.target.files));
+fileInput.addEventListener('change', ev=>{ handleFiles(ev.target.files); ev.target.value=''; });
 
-function toast(msg){const t=$('#toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),1600);}
-function num(v){ if(v==null) return 0; if(typeof v==='number') return v;
-  const n=parseFloat(String(v).replace(/[^0-9.\-]/g,'')); return isNaN(n)?0:n; }
-function won(n){ return Math.round(n).toLocaleString('ko-KR'); }
-function findKey(obj, subs){ for(const k of Object.keys(obj)){ for(const s of subs){ if(String(k).includes(s)) return k; } } return null; }
-
-let DATA = null; // {orderRows, productRows}
+const TYPE_NAME = {settings:'설정 파일', wisaOrder:'위사 주문(주문번호)', wisaProduct:'위사 주문(주문상품)', ppurio:'뿌리오', msg:'위사 메세지',
+  settle:'입점사 정산', ribbon:'제일리본 발주서', refund:'환불 시트', tpl:'3PL 거래내역서'};
 
 function handleFiles(files){
-  if(!files.length) return;
-  $('#fileInfo').textContent = '읽는 중...';
-  let orderRows=[], productRows=[], names=[], pending=files.length;
-  Array.from(files).forEach(f=>{
-    names.push(f.name);
-    const reader = new FileReader();
-    reader.onload = e=>{
-      try{
-        const wb = XLSX.read(new Uint8Array(e.target.result), {type:'array'});
-        wb.SheetNames.forEach(sn=>{
-          const rows = XLSX.utils.sheet_to_json(wb.Sheets[sn], {defval:null});
-          if(!rows.length) return;
-          const sample = rows[0];
-          const hasCat = findKey(sample, ['대분류']);
-          const hasPay = findKey(sample, ['결제방법']) || findKey(sample, ['사용예치금','예치금']);
-          const hasReal = findKey(sample, ['실결제']);
-          const hasNo = findKey(sample, ['주문번호']);
-          if(hasCat && hasReal){ productRows = productRows.concat(rows); }
-          else if(hasPay && hasReal && hasNo){ orderRows = orderRows.concat(rows); }
-        });
-      }catch(err){ console.error(err); }
-      if(--pending===0){ DATA={orderRows, productRows}; $('#fileInfo').textContent='파일: '+names.join(', '); compute(); }
+  const list=Array.from(files); if(!list.length) return;
+  let pending=list.length;
+  list.forEach(f=>{
+    const reader=new FileReader();
+    reader.onload=e=>{
+      let types=[];
+      try{ types=parseWorkbook(XLSX.read(new Uint8Array(e.target.result),{type:'array'}), f.name); }
+      catch(err){ console.error(err); }
+      const i=FILES.findIndex(x=>x.name===f.name); const rec={name:f.name, types};
+      if(i>=0) FILES[i]=rec; else FILES.push(rec);
+      if(--pending===0){ renderChips(); renderAll(); }
     };
     reader.readAsArrayBuffer(f);
   });
 }
 
-function compute(){
-  const {orderRows, productRows} = DATA;
-  const warns = [];
-  if(!orderRows.length && !productRows.length){ $('#warnBox').innerHTML='<div class="warn">인식 가능한 시트를 찾지 못했어요. 위사에서 받은 원본 엑셀인지 확인해주세요.</div>'; return; }
-  if(!orderRows.length) warns.push('주문번호 기준 시트가 없어 총거래액·결제방법 통계는 표시되지 않고, 대분류·입점사 금액은 보정 전(예치금 미차감) 값입니다.');
-  if(!productRows.length) warns.push('주문상품 기준 시트가 없어 대분류·입점사·세부상품 통계는 표시되지 않습니다.');
+function parseWorkbook(wb, fname){
+  const found=new Set();
+  // 설정 파일
+  if(wb.SheetNames.includes('설정')){ loadSettings(wb); found.add('settings'); return [...found]; }
 
-  // ---- 주문번호 기준 ----
-  let totalReal=0, orderCount=0, depositTotal=0, payAgg={};
-  let netByOrder={};
+  let orderRows=[], productRows=[];
+  for(const sn of wb.SheetNames){
+    const ws=wb.Sheets[sn];
+    const aoa=XLSX.utils.sheet_to_json(ws,{header:1,raw:true,defval:null});
+    if(!aoa.length) continue;
+
+    // 위사 주문 (1행이 머리글)
+    const objs=XLSX.utils.sheet_to_json(ws,{defval:null});
+    if(objs.length){
+      const s=objs[0];
+      const hasCat=findKey(s,['대분류']), hasPay=findKey(s,['결제방법'])||findKey(s,['사용예치금']),
+            hasReal=findKey(s,['실결제']), hasNo=findKey(s,['주문번호']);
+      if(hasCat && hasReal && hasNo){ productRows=productRows.concat(objs); continue; }
+      if(hasPay && hasReal && hasNo){ orderRows=orderRows.concat(objs); continue; }
+    }
+    // 뿌리오
+    let h=findHeader(aoa,['날짜','제목','사용(충전금)']);
+    if(h){ F.ppurio=parsePpurio(aoa,h); found.add('ppurio'); continue; }
+    // 위사 메세지 월별통계
+    h=findHeader(aoa,['구분','총합계','SMS']);
+    if(h){ F.msg=parseMsg(aoa,h); found.add('msg'); continue; }
+    // 환불 시트
+    h=findHeader(aoa,['처리일','입점사','실제 취소금액']);
+    if(h){ F.refund=parseRefund(aoa,h); found.add('refund'); continue; }
+    // 제일리본 발주서
+    h=findHeader(aoa,['발송날짜','주문금액']);
+    if(h){ F.ribbon=parseRibbon(aoa,h); found.add('ribbon'); continue; }
+    // 입점사 정산 (워크북에서 처음 나오는 정산 탭 1개만 사용, 계좌·은행 열은 읽지 않음)
+    h=findHeader(aoa,['업체명','입점수수료']);
+    if(h){ if(!found.has('settle')){ F.settle=parseSettle(aoa,h,sn,fname); found.add('settle'); } continue; }
+    // 3PL 거래내역서
+    if(aoa.some(r=>(r||[]).some(c=>norm(c).includes('청구합계'))) && aoa.some(r=>(r||[]).some(c=>norm(c).includes('거래내역서')))){
+      F.tpl=parseTpl(aoa,sn,fname); found.add('tpl'); continue;
+    }
+  }
+  if(orderRows.length){ F.wisaOrder=orderRows; found.add('wisaOrder'); }
+  if(productRows.length){ F.wisaProduct=productRows; found.add('wisaProduct'); }
+  return [...found];
+}
+
+function loadSettings(wb){
+  const get=(n)=>wb.Sheets[n]?XLSX.utils.sheet_to_json(wb.Sheets[n],{header:1,raw:true,defval:null}):[];
+  const s=get('설정');
+  s.slice(1).forEach(r=>{ if(r[0]==null) return; const k=String(r[0]).trim(); if(!k) return;
+    CFG[k] = (typeof DEF[k]==='string') ? String(r[1]==null?'':r[1]).trim() : num(r[1]); });
+  const w=get('위사이용료'); WFEES=[];
+  w.slice(1).forEach(r=>{ if(r[0]==null||String(r[0]).trim()==='') return;
+    WFEES.push({name:String(r[0]).trim(), amt:num(r[1]), cycle:r[2]==null?'':String(r[2]), months:num(r[3])||12, renew:r[4]==null?'':(ymd(r[4])?ymdStr(ymd(r[4])):String(r[4]))}); });
+  const hh=get('월별이력'); HIST={};
+  hh.slice(1).forEach(r=>{ const k=ymOf(r[0]); if(!k) return;
+    HIST[k]={sales:r[1]==null||r[1]===''?null:num(r[1]), mall:r[2]==null||r[2]===''?null:num(r[2]), ribbon:r[3]==null||r[3]===''?null:num(r[3])}; });
+  settingsLoaded=true;
+  $('#cardRate').value=CFG.카드수수료율; $('#bankFee').value=CFG.무통장건당;
+}
+
+function parsePpurio(aoa,h){
+  const c={d:h.col('날짜'), t:h.col('제목'), k:h.col('내용'), u:h.col('사용(충전금)'), b:h.col('잔액(충전금)')};
+  const rows=[];
+  aoa.slice(h.idx+1).forEach(r=>{ const d=ymd(r[c.d]); if(!d) return;
+    rows.push({d, title:r[c.t]==null?'':String(r[c.t]), type:r[c.k]==null?'':String(r[c.k]), used:Math.abs(num(r[c.u])), bal:num(r[c.b])}); });
+  return rows;
+}
+function parseMsg(aoa,h){
+  const hr=aoa[h.idx].map(norm);
+  const colOf=l=>hr.findIndex(c=>c.includes(norm(l)));
+  const groups=[['총합계','총합계'],['SMS','SMS'],['LMS','LMS'],['MMS','MMS'],['카카오','알림톡/브랜드']].map(([k,l])=>({label:l,col:colOf(k)})).filter(g=>g.col>=0);
+  const per={};
+  for(let i=h.idx+1;i<aoa.length;i++){
+    const r=aoa[i]||[]; const m=String(r[0]==null?'':r[0]).match(/(\d{4})\s*[\/.\-]\s*(\d{1,2})/);
+    if(!m) continue;
+    const key=m[1]+'-'+pad(+m[2]);
+    const pr=(aoa[i+1]||[]); const isPt=norm(pr[1]).includes('포인트');
+    per[key]={groups:groups.map(g=>({label:g.label, sOk:num(r[g.col]), sNo:num(r[g.col+1]), pOk:isPt?num(pr[g.col]):0, pNo:isPt?num(pr[g.col+1]):0}))};
+  }
+  return per;
+}
+function parseRefund(aoa,h){
+  const c={pd:h.col('처리일'), od:h.col('주문일'), no:h.col('주문번호'), ven:h.col('입점사'), name:h.col('상품명'), tq:h.col('총수량'),
+    kind:h.col('구분'), why:h.col('사유'), q:h.col('환불적용수량'), unit:h.col('단위'), inbox:h.col('포장입수'), amt:h.col('실제 취소금액'), calc:h.col('산출 환불액')};
+  const rows=[];
+  aoa.slice(h.idx+1).forEach(r=>{ const pd=ymd(r[c.pd]); if(!pd) return;
+    rows.push({pd, od:ymd(r[c.od]), no:r[c.no]==null?'':String(r[c.no]), ven:r[c.ven]==null?'':String(r[c.ven]), name:r[c.name]==null?'':String(r[c.name]),
+      tq:num(r[c.tq]), kind:r[c.kind]==null?'':String(r[c.kind]), why:r[c.why]==null?'':String(r[c.why]), q:r[c.q]==null||r[c.q]===''?null:num(r[c.q]),
+      unit:r[c.unit]==null?'':String(r[c.unit]).trim(), inbox:num(r[c.inbox]), amt:(r[c.amt]==null||r[c.amt]==='')?num(r[c.calc]):num(r[c.amt])}); });
+  return rows;
+}
+function parseRibbon(aoa,h){
+  const c={od:h.col('주문날짜'), sd:h.col('발송날짜'), q:h.col('수량'), no:h.col('주문번호'), amt:h.col('주문금액'), note:h.col('비고')};
+  const rows=[];
+  aoa.slice(h.idx+1).forEach(r=>{ const sd=ymd(r[c.sd]); if(!sd) return;
+    rows.push({od:ymd(r[c.od]), sd, q:num(r[c.q]), no:r[c.no]==null?'':String(r[c.no]), amt:num(r[c.amt]), note:c.note>=0&&r[c.note]!=null?String(r[c.note]):''}); });
+  return rows;
+}
+function parseSettle(aoa,h,sheet,fname){
+  const c={name:h.col('업체명'), fee:h.col('입점수수료'), pay:h.col('정산금액'), note:h.col('비고')};
+  const rows=[];
+  for(const r of aoa.slice(h.idx+1)){
+    const nm=r[c.name]==null?'':String(r[c.name]).trim();
+    if((r||[]).slice(0,4).some(x=>norm(x)==='합계')) break;
+    if(!nm) continue;
+    rows.push({name:nm, fee:num(r[c.fee]), pay:c.pay>=0?num(r[c.pay]):0, note:c.note>=0&&r[c.note]!=null?String(r[c.note]).replace(/\s+/g,' ').trim():''});
+  }
+  return {rows, sheet, file:fname};
+}
+function parseTpl(aoa,sheet,fname){
+  let period='', periodYM='', total=null, items=[], inBlock=false;
+  const lastNum=r=>{ for(let j=r.length-1;j>=0;j--){ if(typeof r[j]==='number') return r[j]; } return null; };
+  const firstStr=r=>{ for(const x of r){ if(typeof x==='string'&&x.trim()) return x.trim(); } return ''; };
+  aoa.forEach(r=>{ r=r||[];
+    const lab=firstStr(r), n=norm(lab);
+    if(n.includes('이용기간')){ const s=r.find(x=>typeof x==='string'&&/\d{4}-\d{1,2}-\d{1,2}/.test(x)); if(s){ period=s.trim(); periodYM=ymOf(s); } }
+    if(n.includes('청구금액')){ inBlock=true; return; }
+    if(n.includes('청구합계')){ total=lastNum(r); inBlock=false; return; }
+    if(inBlock && lab && !n.includes('이용기간')){ const v=lastNum(r); if(v!=null) items.push({label:lab, amt:v}); }
+  });
+  return {period, periodYM, total, items, sheet, file:fname};
+}
+
+function renderChips(){
+  $('#chips').innerHTML=FILES.map(f=>f.types.length
+    ? f.types.map(t=>`<span class="chip ok">✓ ${TYPE_NAME[t]} · ${esc(f.name)}</span>`).join('')
+    : `<span class="chip bad">✕ 인식 못함 · ${esc(f.name)}</span>`).join('');
+}
+
+/* ---------------- 계산 ---------------- */
+function computeWisa(){
+  const orderRows=F.wisaOrder||[], productRows=F.wisaProduct||[];
+  if(!orderRows.length && !productRows.length) return null;
+  const warns=[];
+  let totalReal=0, orderCount=0, depositTotal=0, payAgg={}, netByOrder={}, monthHit=0, monthAll=0;
   if(orderRows.length){
     const s=orderRows[0];
-    const kNo=findKey(s,['주문번호']), kReal=findKey(s,['실결제']),
-          kPay=findKey(s,['결제방법']), kDep=findKey(s,['사용예치금','예치금']);
+    const kNo=findKey(s,['주문번호']), kReal=findKey(s,['실결제']), kPay=findKey(s,['결제방법']), kDep=findKey(s,['사용예치금','예치금']),
+          kDate=findKey(s,['주문일','결제일']);
     orderRows.forEach(r=>{
       const real=num(r[kReal]); totalReal+=real; orderCount++;
       depositTotal += kDep?num(r[kDep]):0;
       if(kNo){ const o=r[kNo]; netByOrder[o]=(netByOrder[o]||0)+real; }
       const pm = kPay? (String(r[kPay]||'').trim()||'(미지정)') : '(미지정)';
       if(!payAgg[pm]) payAgg[pm]={cnt:0,amt:0}; payAgg[pm].cnt++; payAgg[pm].amt+=real;
+      if(kDate){ const k=ymOf(r[kDate]); if(k){ monthAll++; if(k===M()) monthHit++; } }
     });
-  }
-
-  // ---- 주문상품 기준: 비례배분 ----
-  let catAgg={}, vendAgg={}, prodByCat={}, totalQty=0;
-  let allocTotal=0, unmatched=0;
+  } else warns.push('주문번호 기준 시트가 없어 총거래액·결제방법 통계가 빠지고, 대분류·입점사 금액은 보정 전 값이에요.');
+  let catAgg={}, vendAgg={}, prodByCat={}, totalQty=0, allocTotal=0, unmatched=0;
   if(productRows.length){
     const s=productRows[0];
-    const kNo=findKey(s,['주문번호']), kReal=findKey(s,['실결제']),
-          kCat=findKey(s,['대분류']), kVen=findKey(s,['입점사']),
-          kQty=findKey(s,['주문수량','수량']), kUnit=findKey(s,['상품단가','단가']),
-          kName=findKey(s,['주문상품','상품명']);
-    const wsum={}, cntLines={};
-    productRows.forEach(r=>{
-      let w=num(r[kReal]); if(!(w>0)) w=num(r[kUnit])*num(r[kQty]); r.__w=w;
-      const o=r[kNo]; wsum[o]=(wsum[o]||0)+w; cntLines[o]=(cntLines[o]||0)+1;
-    });
+    const kNo=findKey(s,['주문번호']), kReal=findKey(s,['실결제']), kCat=findKey(s,['대분류']), kVen=findKey(s,['입점사']),
+          kQty=findKey(s,['주문수량','수량']), kUnit=findKey(s,['상품단가','단가']), kName=findKey(s,['주문상품','상품명']);
+    const wsum={}, cnt={};
+    productRows.forEach(r=>{ let w=num(r[kReal]); if(!(w>0)) w=num(r[kUnit])*num(r[kQty]); r.__w=w; const o=r[kNo]; wsum[o]=(wsum[o]||0)+w; cnt[o]=(cnt[o]||0)+1; });
     productRows.forEach(r=>{
       const o=r[kNo]; let alloc;
-      if(o in netByOrder){ alloc = wsum[o]>0 ? netByOrder[o]*(r.__w/wsum[o]) : netByOrder[o]/cntLines[o]; }
-      else { alloc = num(r[kReal]); unmatched+=alloc; }
+      if(o in netByOrder){ alloc = wsum[o]>0 ? netByOrder[o]*(r.__w/wsum[o]) : netByOrder[o]/cnt[o]; }
+      else { alloc=num(r[kReal]); unmatched+=alloc; }
       allocTotal+=alloc;
-      const cat = String(r[kCat]||'(미분류)').trim()||'(미분류)';
-      let ven = kVen? String(r[kVen]==null?'':r[kVen]).trim() : '';
-      if(!ven) ven='제일무역(자사)';
-      const qty=num(r[kQty]);
-      totalQty+=qty;
-      if(!catAgg[cat]) catAgg[cat]={amt:0,qty:0}; catAgg[cat].amt+=alloc; catAgg[cat].qty+=qty;
-      if(!vendAgg[ven]) vendAgg[ven]={amt:0,qty:0}; vendAgg[ven].amt+=alloc; vendAgg[ven].qty+=qty;
-      const nm = kName? String(r[kName]||'').trim() : '(이름없음)';
-      if(!prodByCat[cat]) prodByCat[cat]={};
-      if(!prodByCat[cat][nm]) prodByCat[cat][nm]={amt:0,qty:0};
-      prodByCat[cat][nm].amt+=alloc; prodByCat[cat][nm].qty+=qty;
+      const cat=String(r[kCat]||'(미분류)').trim()||'(미분류)';
+      let ven=kVen? String(r[kVen]==null?'':r[kVen]).trim() : ''; if(!ven) ven='제일무역(자사)';
+      const qty=num(r[kQty]); totalQty+=qty;
+      (catAgg[cat]=catAgg[cat]||{amt:0,qty:0}); catAgg[cat].amt+=alloc; catAgg[cat].qty+=qty;
+      (vendAgg[ven]=vendAgg[ven]||{amt:0,qty:0}); vendAgg[ven].amt+=alloc; vendAgg[ven].qty+=qty;
+      const nm=kName? String(r[kName]||'').trim() : '(이름없음)';
+      prodByCat[cat]=prodByCat[cat]||{}; (prodByCat[cat][nm]=prodByCat[cat][nm]||{amt:0,qty:0}); prodByCat[cat][nm].amt+=alloc; prodByCat[cat][nm].qty+=qty;
     });
-    if(!orderRows.length) totalReal = allocTotal;
+    if(!orderRows.length) totalReal=allocTotal;
   }
-  if(unmatched>0) warns.push('주문상품 시트에 있지만 주문번호 시트에는 없는 주문이 있어, 해당 '+won(unmatched)+'원은 보정 없이 합산했습니다.');
-
-  render({totalReal, orderCount, depositTotal, payAgg, catAgg, vendAgg, prodByCat, totalQty, warns});
+  if(unmatched>0) warns.push('주문상품 시트에만 있는 주문 '+won(unmatched)+'원은 보정 없이 합산했어요.');
+  return {totalReal, orderCount, depositTotal, payAgg, catAgg, vendAgg, prodByCat, totalQty, warns, monthHit, monthAll};
 }
 
-function sortDesc(agg){ return Object.entries(agg).sort((a,b)=>b[1].amt-a[1].amt); }
-const PAL=['#5B9BD5','#70AD47','#FFC000','#ED7D31','#A5A5A5','#2E5496','#9DC3E6','#c0504d','#8064a2'];
-// 카테고리별 고정 색 (작년/올해 색 통일용). 여기 색만 바꾸면 차트·범례에 같이 반영됩니다.
-const CATCOLOR={'리본':'#5B9BD5','대국':'#70AD47','화훼부자재':'#FFC000','조화':'#ED7D31','생화':'#A5A5A5'};
-function catColor(name,i){ return CATCOLOR[String(name).trim()] || PAL[i%PAL.length]; }
-
-function render(R){
-  charts.forEach(c=>c.destroy()); charts=[];
-  $('#warnBox').innerHTML = R.warns.map(w=>'<div class="warn">⚠ '+w+'</div>').join('');
-  const res = $('#result'); res.classList.remove('hidden');
-
-  const catRows = sortDesc(R.catAgg), venRows = sortDesc(R.vendAgg);
-  const catTot = catRows.reduce((s,[,v])=>s+v.amt,0);
-  const venTot = venRows.reduce((s,[,v])=>s+v.amt,0);
-
-  let html = '';
-  // KPIs
-  html += '<div class="kpis">'+
-    kpi('사이트 총거래액', won(R.totalReal)+'원', '주문번호 기준 실결제') +
-    kpi('총 주문건수', R.orderCount.toLocaleString()+'건', '') +
-    kpi('총 판매수량', R.totalQty.toLocaleString()+'개', '주문상품 기준') +
-    kpi('사용 예치금', won(R.depositTotal)+'원', '실결제에서 제외됨') +
-  '</div>';
-
-  // 결제방법별
-  if(Object.keys(R.payAgg).length){
-    html += '<section><h2>결제방법별 실결제액 · 수수료 추정</h2>'+
-      '<p class="desc">수수료율은 직접 바꿀 수 있어요. (신용카드 %, 무통장 건당 원)</p>'+
-      '<div class="fee-inputs">'+
-        '카드 수수료율 <input id="cardRate" type="number" step="0.1" value="3.5">% &nbsp; '+
-        '무통장 건당 <input id="bankFee" type="number" step="50" value="400">원'+
-      '</div><div id="payTableBox"></div>'+
-      '<div class="btnrow"><button class="primary" onclick="copyPay(false)">보고서용 복사 (값만)</button>'+
-      '<button onclick="copyPay(true)">제목 줄 포함 복사</button></div>'+
-      '<p class="desc" style="margin-top:8px">\'PG 결제수수료 추정 상세\' 시트의 <b>신용카드 결제</b> 칸(A4)을 클릭하고 붙여넣으면 계까지 한 번에 채워져요.</p></section>';
-  }
-  // 대분류별
-  if(catRows.length){
-    html += '<section><h2>상품 대분류별 판매액 · 수량</h2>'+
-      '<p class="desc">총거래액 기준으로 보정(예치금·할인 반영)되어 합계가 정산과 일치합니다.</p>'+
-      tableHTML('catTable', ['대분류','거래액','비중','수량'], catRows.map(([k,v])=>[k, v.amt, v.amt/catTot, v.qty]), catTot, R.totalQty)+
-      '<div class="legend" id="catLegend"></div><div class="chartbox"><canvas id="catChart" role="img" aria-label="대분류별 거래액 비중 도넛 차트"></canvas></div>'+
-      '<div class="btnrow"><button onclick="copyTable(\'catTable\')">표 복사</button></div></section>';
-  }
-  // 입점사별
-  if(venRows.length){
-    html += '<section><h2>입점사별 판매액 · 수량</h2>'+
-      '<p class="desc">빈 입점사명은 자사(제일무역)로 표기됩니다.</p>'+
-      tableHTML('venTable', ['입점사','거래액','비중','수량'], venRows.map(([k,v])=>[k, v.amt, v.amt/venTot, v.qty]), venTot, venRows.reduce((s,[,v])=>s+v.qty,0))+
-      '<div class="chartbox" style="height:'+Math.max(260, venRows.length*40+80)+'px"><canvas id="venChart" role="img" aria-label="입점사별 거래액 가로 막대 차트"></canvas></div>'+
-      '<div class="btnrow"><button onclick="copyTable(\'venTable\')">표 복사</button></div></section>';
-  }
-  // 세부상품 TOP
-  if(Object.keys(R.prodByCat).length){
-    let trs='';
-    catRows.forEach(([cat])=>{
-      const items = Object.entries(R.prodByCat[cat]).sort((a,b)=>b[1].amt-a[1].amt).slice(0,5);
-      trs += '<tr><td class="cat-head" colspan="3">'+cat+'</td></tr>';
-      items.forEach(([nm,v])=> trs += '<tr><td>'+esc(nm)+'</td><td>'+won(v.amt)+'</td><td>'+v.qty+'</td></tr>');
-    });
-    html += '<section><h2>대분류별 세부 상품 TOP 5</h2>'+
-      '<p class="desc">카테고리 안에서 잘 팔린 상품 순위입니다.</p>'+
-      '<table id="prodTable"><thead><tr><th>상품명</th><th>거래액</th><th>수량</th></tr></thead><tbody>'+trs+'</tbody></table>'+
-      '<div class="btnrow"><button onclick="copyTable(\'prodTable\')">표 복사</button></div></section>';
-  }
-
-  html += '<div class="btnrow" style="margin:20px 0"><button class="primary" onclick="downloadExcel()">📥 전체 통계 엑셀로 다운로드</button></div>';
-  res.innerHTML = html;
-
-  // 결제방법 표(수수료 인풋 연동)
-  if($('#payTableBox')){
-    renderPay(R.payAgg);
-    $('#cardRate').addEventListener('input',()=>renderPay(R.payAgg));
-    $('#bankFee').addEventListener('input',()=>renderPay(R.payAgg));
-  }
-  // 차트
-  if(catRows.length) drawDonut(catRows, catTot);
-  if(venRows.length) drawBar(venRows);
-  window.__R = R; window.__catRows=catRows; window.__venRows=venRows; window.__catTot=catTot; window.__venTot=venTot;
-}
-
-function kpi(l,v,s){ return '<div class="kpi"><div class="lbl">'+l+'</div><div class="val">'+v+'</div>'+(s?'<div class="sub">'+s+'</div>':'')+'</div>'; }
-function esc(s){ return String(s).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c])); }
-
-function tableHTML(id, heads, rows, totAmt, totQty){
-  let h='<table id="'+id+'"><thead><tr>'+heads.map(x=>'<th>'+x+'</th>').join('')+'</tr></thead><tbody>';
-  rows.forEach(r=>{ h+='<tr><td>'+esc(r[0])+'</td><td>'+won(r[1])+'</td><td><span class="pct">'+(r[2]*100).toFixed(1)+'%</span></td><td>'+r[3].toLocaleString()+'</td></tr>'; });
-  h+='</tbody><tfoot><tr><td>합계</td><td>'+won(totAmt)+'</td><td>100%</td><td>'+totQty.toLocaleString()+'</td></tr></tfoot></table>';
-  return h;
-}
-
-// 보고서(PG 결제수수료 추정 상세) 양식과 같은 순서·열로 행을 만든다
-const PAY_HEAD=['방식','수수료율','총 결제금액','건수','수수료','수수료 제외 결제액'];
-function payRows(payAgg){
-  const cr = num($('#cardRate').value), bf = num($('#bankFee').value);
-  const fixed = {card:{label:'신용카드 결제',rate:cr+'%',cnt:0,amt:0,fee:0},
-                 bank:{label:'무통장입금',rate:'건당 '+bf.toLocaleString()+'원 추정',cnt:0,amt:0,fee:0},
-                 dep:{label:'예치금',rate:'',cnt:0,amt:0,fee:0}};
-  const extra = {};
+function computePay(payAgg){
+  const cr=num($('#cardRate').value), bf=num($('#bankFee').value);
+  const g={card:{label:'신용카드 결제',rate:cr+'%',cnt:0,amt:0,fee:0}, bank:{label:'무통장입금',rate:'건당 '+bf.toLocaleString()+'원 추정',cnt:0,amt:0,fee:0}, dep:{label:'예치금',rate:'',cnt:0,amt:0,fee:0}};
+  const extra={};
   Object.entries(payAgg).forEach(([pm,v])=>{
-    let g;
-    if(pm.includes('카드')){ g=fixed.card; g.fee+=v.amt*cr/100; }
-    else if(pm.includes('무통장')){ g=fixed.bank; g.fee+=v.cnt*bf; }
-    else if(pm.includes('예치금')){ g=fixed.dep; }
-    else { g = extra[pm] = extra[pm] || {label:pm,rate:'',cnt:0,amt:0,fee:0}; }
-    g.cnt+=v.cnt; g.amt+=v.amt;
+    let x;
+    if(pm.includes('카드')){ x=g.card; x.fee+=v.amt*cr/100; }
+    else if(pm.includes('무통장')){ x=g.bank; x.fee+=v.cnt*bf; }
+    else if(pm.includes('예치금')) x=g.dep;
+    else x=extra[pm]=extra[pm]||{label:pm,rate:'',cnt:0,amt:0,fee:0};
+    x.cnt+=v.cnt; x.amt+=v.amt;
   });
-  const list=[fixed.card, fixed.bank, fixed.dep, ...Object.values(extra)];
-  const rows=list.map(g=>[g.label,g.rate,g.amt,g.cnt,g.fee,g.amt-g.fee]);
+  const rows=[g.card,g.bank,g.dep,...Object.values(extra)].map(x=>[x.label,x.rate,x.amt,x.cnt,x.fee,x.amt-x.fee]);
   const t=rows.reduce((a,r)=>{a.amt+=r[2];a.cnt+=r[3];a.fee+=r[4];return a;},{amt:0,cnt:0,fee:0});
-  rows.push(['계','',t.amt,t.cnt,t.fee,t.amt-t.fee]);
-  return rows;
-}
-function payCellText(r){ // 0원은 보고서처럼 '-'로
-  const m=v=>Math.round(v)===0?'-':won(v);
-  return [r[0], r[1], m(r[2]), r[3].toLocaleString(), m(r[4]), m(r[5])];
-}
-function renderPay(payAgg){
-  const rows=payRows(payAgg), last=rows.length-1;
-  let body='';
-  rows.slice(0,last).forEach(r=>{ body+='<tr>'+payCellText(r).map(c=>'<td>'+esc(c)+'</td>').join('')+'</tr>'; });
-  $('#payTableBox').innerHTML='<table id="payTable"><thead><tr>'+PAY_HEAD.map(h=>'<th>'+h+'</th>').join('')+'</tr></thead><tbody>'+body+
-    '</tbody><tfoot><tr>'+payCellText(rows[last]).map(c=>'<td>'+esc(c)+'</td>').join('')+'</tr></tfoot></table>';
-  window.__payRows=rows;
-}
-function copyPay(withHead){
-  const lines=(window.__payRows||[]).map(r=>payCellText(r).join('\t'));
-  if(withHead) lines.unshift(PAY_HEAD.join('\t'));
-  navigator.clipboard.writeText(lines.join('\n')).then(()=>toast(withHead?'제목 줄 포함으로 복사했어요. A3 칸에 붙여넣으세요.':'복사했어요. 보고서의 A4 칸(신용카드 결제)에 붙여넣으세요.'));
+  return {rows, tot:['계','',t.amt,t.cnt,t.fee,t.amt-t.fee], fee:t.fee};
 }
 
-function drawDonut(rows, tot){
-  $('#catLegend').innerHTML = rows.map((r,i)=>'<span><i style="background:'+catColor(r[0],i)+'"></i>'+esc(r[0])+' '+(r[1].amt/tot*100).toFixed(1)+'%</span>').join('');
-  charts.push(new Chart($('#catChart'),{type:'doughnut',
-    data:{labels:rows.map(r=>r[0]),datasets:[{data:rows.map(r=>Math.round(r[1].amt)),backgroundColor:rows.map((r,i)=>catColor(r[0],i)),borderColor:'#fff',borderWidth:2}]},
-    options:{responsive:true,maintainAspectRatio:false,cutout:'58%',plugins:{legend:{display:false},
-      tooltip:{callbacks:{label:c=>c.label+': '+won(c.raw)+'원'}}}}}));
-}
-function drawBar(rows){
-  charts.push(new Chart($('#venChart'),{type:'bar',
-    data:{labels:rows.map(r=>r[0]),datasets:[{data:rows.map(r=>Math.round(r[1].amt)),backgroundColor:'#2E5496',borderRadius:3}]},
-    options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},
-      tooltip:{callbacks:{label:c=>won(c.raw)+'원'}}},
-      scales:{x:{ticks:{callback:v=>(v/10000).toLocaleString()+'만'}},y:{grid:{display:false}}}}}));
-}
-
-function copyTable(id){
-  const t=$('#'+id); let out=[];
-  t.querySelectorAll('tr').forEach(tr=>{
-    const cells=[...tr.querySelectorAll('th,td')].map(td=>td.textContent.replace(/\s+/g,' ').trim());
-    out.push(cells.join('\t'));
+function computePpurio(){
+  if(!F.ppurio) return null;
+  const all=F.ppurio, rows=all.filter(r=>r.d.y+'-'+pad(r.d.m)===M()).map(r=>{
+    const kind=/포토|MMS/i.test(r.type)?'포토':'장문';
+    const unit=kind==='포토'?CFG.포토단가:CFG.장문단가;
+    const qty=unit?Math.round(r.used/unit):0;
+    return {...r, kind, unit, qty, test: qty<=CFG.테스트기준};
   });
-  navigator.clipboard.writeText(out.join('\n')).then(()=>toast('표를 복사했어요. 엑셀에 붙여넣기(Ctrl+V) 하세요.'));
+  const mainDates=[...new Set(rows.filter(r=>!r.test).map(r=>ymdStr(r.d)))].sort();
+  rows.forEach(r=>{ const i=mainDates.indexOf(ymdStr(r.d)); r.round = i>=0 ? (i+1)+'회차' : '테스트'; });
+  rows.sort((a,b)=> ymdStr(a.d)<ymdStr(b.d)?-1: ymdStr(a.d)>ymdStr(b.d)?1: b.qty-a.qty);
+  const sum={장문:{rounds:new Set(),qty:0}, 포토:{rounds:new Set(),qty:0}};
+  rows.forEach(r=>{ sum[r.kind].qty+=r.qty; if(!r.test) sum[r.kind].rounds.add(ymdStr(r.d)); });
+  const maxD=all.reduce((m,r)=>ymdStr(r.d)>m?ymdStr(r.d):m,'');
+  return {rows, mainDates, sum, maxD};
 }
 
-function downloadExcel(){
-  const R=window.__R, catRows=window.__catRows, venRows=window.__venRows, catTot=window.__catTot, venTot=window.__venTot;
-  const wb=XLSX.utils.book_new();
-  const summary=[['항목','값'],
-    ['사이트 총거래액(주문번호 기준)',Math.round(R.totalReal)],
-    ['총 주문건수',R.orderCount],
-    ['총 판매수량',R.totalQty],
-    ['사용 예치금',Math.round(R.depositTotal)],
-    ['추출일',new Date().toISOString().slice(0,10)]];
-  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(summary), '요약');
+function computePromo(pp){
+  const faxNone=$('#faxNone').checked;
+  const fr=faxNone?0:num($('#faxRounds').value), fc=faxNone?0:num($('#faxCount').value);
+  const lines=[
+    ['장문', CFG.장문단가, pp?pp.sum.장문.rounds.size:null, pp?pp.sum.장문.qty:null],
+    ['포토', CFG.포토단가, pp?pp.sum.포토.rounds.size:null, pp?pp.sum.포토.qty:null],
+    ['LG 웹팩스', CFG.팩스단가, fr, fc]
+  ].map(([k,u,r,q])=>({k,u,r,q,cost:q==null?null:u*q}));
+  const ready=!!pp;
+  const total=ready? lines.reduce((s,l)=>s+(l.cost||0),0) : null;
+  return {lines, total, ready, faxNote: faxNone?'이번 달 없음':(fc?'':'건수 입력 필요')};
+}
 
-  if(window.__payRows && $('#payTable')){
-    const aoa=[PAY_HEAD, ...window.__payRows.map(r=>[r[0],r[1],Math.round(r[2]),r[3],Math.round(r[4]),Math.round(r[5])])];
-    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(aoa), '결제방법별');
+function computeWisaFee(){
+  const m=F.msg&&F.msg[M()];
+  const msgPts = m ? (m.groups.find(g=>g.label==='총합계')||{pOk:0}).pOk : null;
+  const rows=WFEES.map(w=>({name:w.name, amt:w.amt, cycle:w.cycle, monthly:w.amt/(w.months||12), renew:w.renew}));
+  const total = rows.reduce((s,r)=>s+r.monthly,0) + (msgPts||0);
+  return {rows, msgPts, msg:m, total, ready: WFEES.length>0 && msgPts!=null};
+}
+
+function computeRibbon(){
+  const boxRolls=CFG.박스당롤||8;
+  const sold=(F.ribbon||[]).filter(r=>r.sd.y+'-'+pad(r.sd.m)===M());
+  const boxes=sold.reduce((s,r)=>s+r.q,0), soldAmt=sold.reduce((s,r)=>s+r.amt,0), rolls=boxes*boxRolls;
+  const refunds=(F.refund||[]).filter(r=>r.pd.y+'-'+pad(r.pd.m)===M() && r.ven.includes(CFG.자사입점사) && r.name.includes(CFG.자사상품키워드)).map(r=>{
+    let q;
+    if(r.q!=null && /롤/.test(r.unit)) q=r.q;
+    else if(r.q!=null && /박스|box/i.test(r.unit)) q=r.q*boxRolls;
+    else if(r.q!=null && r.unit==='') q=r.q;
+    else q=r.tq*boxRolls;
+    if(/초과입금/.test(r.kind)) q=0;
+    const cur = r.od && (r.od.y+'-'+pad(r.od.m))===M();
+    return {...r, rolls:q, cur};
+  });
+  const rfCur=refunds.filter(r=>r.cur).reduce((s,r)=>s+r.rolls,0), rfPrev=refunds.filter(r=>!r.cur).reduce((s,r)=>s+r.rolls,0);
+  const rfAmt=refunds.reduce((s,r)=>s+r.amt,0), rfRolls=rfCur+rfPrev;
+  const net=soldAmt-rfAmt, cost=(CFG.롤당원가||0)*rolls, gross=net-cost;
+  const tplOk = F.tpl && F.tpl.periodYM===M() && F.tpl.total!=null;
+  const man = $('#tplManual').value!=='' ? num($('#tplManual').value) : null;
+  const logi = tplOk ? F.tpl.total : man;
+  const profit = logi==null ? null : gross-logi;
+  return {sold, boxes, rolls, soldAmt, refunds, rfCur, rfPrev, rfRolls, rfAmt, net, cost, gross, logi, logiSrc: tplOk?'file':(man!=null?'manual':null), profit, boxRolls};
+}
+
+/* ---------------- 체크목록 ---------------- */
+function buildChecks(ctx){
+  const m=M(), [Y,MM]=m.split('-').map(Number), C=[];
+  const add=(st,nm,ds)=>C.push({st,nm,ds});
+  // 설정
+  if(!settingsLoaded) add('no','설정 파일','아직 안 넣었어요. 단가는 기본값을 쓰고, 원가·위사 이용료·전월/전년 비교가 비어요.');
+  else{
+    const miss=[]; if(!HIST[addMonth(m,-1)]) miss.push('전월('+addMonth(m,-1)+')'); if(!HIST[addMonth(m,-12)]) miss.push('전년 동월('+addMonth(m,-12)+')');
+    if(!CFG.롤당원가) miss.push('롤당원가'); if(!WFEES.length) miss.push('위사 이용료 항목');
+    add(miss.length?'warn':'ok','설정 파일', miss.length? '들어왔지만 비어 있는 값: <b>'+miss.join(', ')+'</b>' : '단가·원가·위사 이용료·월별 이력 모두 있어요.');
   }
+  // 위사 주문
+  const W=ctx.W;
+  if(!F.wisaOrder) add('no','위사 주문 (주문번호 기준)','총거래액·결제방법(PG 수수료)에 필요해요.');
+  else if(W.monthAll && W.monthHit/W.monthAll<0.95) add('warn','위사 주문 (주문번호 기준)',`주문일이 ${MM}월인 주문이 <b>${W.monthHit}/${W.monthAll}건</b>뿐이에요. 다른 달 파일이 아닌지 확인해 주세요.`);
+  else add('ok','위사 주문 (주문번호 기준)', `${F.wisaOrder.length.toLocaleString()}건` + (W.monthAll?` · 모두 ${MM}월 주문`:''));
+  add(F.wisaProduct?'ok':'no','위사 주문 (주문상품 기준)', F.wisaProduct? `${F.wisaProduct.length.toLocaleString()}줄 · 대분류·입점사 통계` : '대분류·입점사·세부상품 통계에 필요해요.');
+  // 뿌리오
+  const pp=ctx.pp;
+  if(!F.ppurio) add('no','뿌리오 발송결과','뿌리오 → 충전 → 발송결과에서 내려받은 파일');
+  else if(pp.maxD.slice(0,7)<m) add('warn','뿌리오 발송결과',`파일이 <b>${pp.maxD}</b>까지만 있어요. ${MM}월 말 이후에 다시 내려받아 주세요.`);
+  else if(!pp.rows.length) add('warn','뿌리오 발송결과',`${MM}월 발송이 하나도 없어요. 맞으면 그대로 두셔도 돼요.`);
+  else add('ok','뿌리오 발송결과',`${MM}월 본 발송 <b>${pp.mainDates.length}회차</b>, ${pp.rows.length}줄`+(pp.rows.some(r=>r.round==='테스트')?' · 테스트만 있는 날 포함':''));
+  // 위사 메세지
+  if(!F.msg) add('no','위사 메세지 월별통계','위사 이용료의 메시지 충전금 사용분에 들어가요.');
+  else if(!F.msg[m]) add('warn','위사 메세지 월별통계',`파일에 <b>${MM}월</b> 줄이 없어요. (있는 달: ${Object.keys(F.msg).join(', ')||'없음'})`);
+  else add('ok','위사 메세지 월별통계',`${MM}월 포인트 ${won(ctx.wf.msgPts)}`);
+  // 정산
+  if(!F.settle) add('no','입점사 정산','입점사 수수료 수익(부자재몰 매출)에 필요해요.');
+  else add($('#settleOk').checked?'ok':'warn','입점사 정산',`'${esc(F.settle.sheet)}' 탭 ${F.settle.rows.length}줄, 수수료 합계 <b>${won(ctx.settleFee)}</b>원. 파일에 정산 월이 없어서 직접 확인 후 위 체크박스를 눌러 주세요.`);
+  // 제일리본 발주서
+  const rb=ctx.rb;
+  if(!F.ribbon) add('no','제일리본 발주서','발송 기준 판매 수량·금액');
+  else if(!rb.sold.length) add('warn','제일리본 발주서',`발송날짜가 ${MM}월인 줄이 없어요.`);
+  else add('ok','제일리본 발주서',`${MM}월 발송 ${rb.sold.length}건 · ${rb.boxes}박스(${rb.rolls}롤) · ${won(rb.soldAmt)}원`);
+  // 환불
+  if(!F.refund) add('no','환불 시트','제일리본 환불 수량·금액 (없으면 환불 0으로 계산돼요)');
+  else{ const mx=F.refund.reduce((a,r)=>ymdStr(r.pd)>a?ymdStr(r.pd):a,'');
+    if(mx.slice(0,7)<m) add('warn','환불 시트',`처리일이 <b>${mx}</b>까지만 있어요. 최신 파일인지 확인해 주세요.`);
+    else add('ok','환불 시트',`${MM}월 자사상품 환불 ${rb.refunds.length}건 · ${rb.rfRolls}롤 · ${won(rb.rfAmt)}원`); }
+  // 3PL
+  if(F.tpl && F.tpl.periodYM===m) add('ok','3PL 거래내역서',`이용 기간 ${esc(F.tpl.period)} · 청구 합계 <b>${won(F.tpl.total)}</b>원`);
+  else if(F.tpl) add('warn','3PL 거래내역서',`넣은 파일은 <b>${esc(F.tpl.period||'기간 모름')}</b> 청구서예요. ${MM}월 청구서가 필요해요.`+(rb.logiSrc==='manual'?' (직접 입력값 사용 중)':''));
+  else if(rb.logiSrc==='manual') add('ok','3PL 거래내역서','직접 입력한 금액 사용 중');
+  else add('wait','3PL 거래내역서',`${MM}월 청구서는 다음 달에 와요. 받으면 넣어 주세요. 그 전까지 제일리본 영업이익은 비워 둬요.`);
+  // 팩스
+  const faxOk=$('#faxNone').checked||num($('#faxCount').value)>0;
+  add(faxOk?'ok':'no','팩스 (직접 입력)', faxOk? ($('#faxNone').checked?'이번 달 없음':`${num($('#faxRounds').value)}회 · ${num($('#faxCount').value)}건`) : '아래에 횟수·건수를 넣거나 "이번 달 팩스 없음"을 눌러 주세요.');
+  return C;
+}
+function renderChecks(C){
+  const ic={ok:'✅',warn:'⚠️',no:'⬜',wait:'⏳'};
+  const done=C.filter(c=>c.st==='ok').length;
+  $('#progress').innerHTML=`<b>${done} / ${C.length}</b> 완료 · ${monthLabel(M())}`;
+  $('#checklist').innerHTML=C.map(c=>`<li><span class="ic">${ic[c.st]}</span><span class="nm">${c.nm}</span><span class="ds">${c.ds}</span></li>`).join('');
+}
+
+/* ---------------- 렌더 ---------------- */
+const PAL=['#5B9BD5','#70AD47','#FFC000','#ED7D31','#A5A5A5','#2E5496','#9DC3E6','#c0504d','#8064a2'];
+const CATCOLOR={'리본':'#5B9BD5','대국':'#70AD47','화훼부자재':'#FFC000','조화':'#ED7D31','생화':'#A5A5A5'};
+const catColor=(n,i)=>CATCOLOR[String(n).trim()]||PAL[i%PAL.length];
+const sortDesc=agg=>Object.entries(agg).sort((a,b)=>b[1].amt-a[1].amt);
+const empty=t=>`<div class="empty">${t}</div>`;
+function tbl(id, sheet, head, rows, foot, cls){
+  return `<div class="tblwrap"><table id="${id}" data-sheet="${sheet||''}"><thead><tr>${head.map((h,i)=>`<th${cls&&cls[i]?` class="${cls[i]}"`:''}>${h}</th>`).join('')}</tr></thead><tbody>`+
+    rows.map(r=>`<tr${r._c?` class="${r._c}"`:''}>${r.map((c,i)=>`<td${cls&&cls[i]?` class="${cls[i]}"`:''}>${c}</td>`).join('')}</tr>`).join('')+
+    `</tbody>${foot?`<tfoot><tr>${foot.map((c,i)=>`<td${cls&&cls[i]?` class="${cls[i]}"`:''}>${c}</td>`).join('')}</tr></tfoot>`:''}</table></div>`;
+}
+const R_=(arr,c)=>{arr._c=c;return arr;};
+const copyBtns=(id,noHead)=>`<div class="btnrow"><button class="sm" onclick="copyTable('${id}',true)">표 복사</button>${noHead?`<button class="sm" onclick="copyTable('${id}',false)">값만 복사 (제목 줄 빼고)</button>`:''}</div>`;
+function cmp(cur, prev){
+  if(cur==null||prev==null||!prev) return '<span>—</span>';
+  const d=(cur-prev)/Math.abs(prev);
+  return `<span class="${d>=0?'up':'down'}">${d>=0?'▲':'▼'} ${Math.abs(d*100).toFixed(1)}%</span>`;
+}
+function kpi(label, val, prev, prevY){
+  return `<div class="kpi"><div class="lbl">${label}</div><div class="val">${val==null?'—':won(val)+'원'}</div>
+    <div class="cmp"><span>전월</span><span style="text-align:right">${won(prev)}</span>${cmp(val,prev)}
+    ${prevY!==undefined?`<span>전년 동월</span><span style="text-align:right">${won(prevY)}</span>${cmp(val,prevY)}`:''}</div></div>`;
+}
+
+function renderAll(){
+  if(!M()) return;
+  charts.forEach(c=>c.destroy()); charts=[];
+  const m=M(), [Y,MM]=m.split('-').map(Number);
+  const W=computeWisa(), pay=W&&F.wisaOrder?computePay(W.payAgg):null, pp=computePpurio(), promo=computePromo(pp),
+        wf=computeWisaFee(), rb=computeRibbon();
+  const settleFee=F.settle?F.settle.rows.reduce((s,r)=>s+r.fee,0):null;
+  const pg=pay?pay.fee:null;
+  const costs=[promo.total, pg, wf.ready?wf.total:null];
+  const mallCost = costs.every(v=>v!=null) ? costs.reduce((a,b)=>a+b,0) : null;
+  const mallProfit = settleFee!=null && mallCost!=null ? settleFee-mallCost : null;
+  const sales = W&&F.wisaOrder ? W.totalReal : (HIST[m]&&HIST[m].sales);
+  window.__cur={m, sales: W&&F.wisaOrder?W.totalReal:null, mall:mallProfit, ribbon:rb.profit};
+
+  const ctx={W:W||{monthHit:0,monthAll:0}, pp, wf, rb, settleFee};
+  const C=buildChecks(ctx); renderChecks(C);
+  const missing=C.filter(c=>c.st!=='ok').map(c=>c.nm);
+
+  const H=k=>HIST[k]||{};
+  const prevM=addMonth(m,-1), prevY=addMonth(m,-12);
+  let h='';
+  h+=`<div class="rpt-head"><h2>베스트꽃자재연구소 월간 매출</h2><p>보고 기간: ${monthLabel(m)}</p>${missing.length?`<div class="miss">미완료 자료: ${missing.join(', ')}</div>`:''}</div>`;
+
+  /* ===== 1. 대시보드 ===== */
+  h+=`<div class="kpis">${kpi('사이트 총 거래액', sales, H(prevM).sales, H(prevY).sales)}${kpi('부자재몰 영업이익', mallProfit, H(prevM).mall, H(prevY).mall)}${kpi('제일리본 영업이익', rb.profit, H(prevM).ribbon, H(prevY).ribbon)}</div>`;
+  // 월별 거래액
+  const yr=[], yrPrev=[];
+  for(let i=1;i<=12;i++){ const k=Y+'-'+pad(i), kp=(Y-1)+'-'+pad(i);
+    yr.push(k===m && sales!=null ? sales : (H(k).sales??null)); yrPrev.push(H(kp).sales??null); }
+  const cum=(a)=>a.slice(0,MM).reduce((s,v)=>s+(v||0),0);
+  const monRows=[]; for(let i=0;i<12;i++){ monRows.push(R_([(i+1)+'월', won(yrPrev[i]), won(yr[i]), yr[i]!=null&&yrPrev[i]?pct((yr[i]-yrPrev[i])/yrPrev[i]):'—'], i+1===MM?'sub':'')); }
+  monRows.push(R_([`1~${MM}월 누계`, won(cum(yrPrev)), won(cum(yr)), cum(yrPrev)?pct((cum(yr)-cum(yrPrev))/cum(yrPrev)):'—'],'tot'));
+  h+=`<section><h2>사이트 총 거래액 (월별)</h2><p class="desc">설정 파일의 월별 이력 + 이번 달 위사 주문 기준</p>
+    <div class="grid2"><div>${tbl('monTable','월별거래액',['월',(Y-1)+'년',Y+'년','증감'],monRows)}</div>
+    <div><div class="chartbox" style="height:330px"><canvas id="monChart" role="img" aria-label="월별 거래액 막대 차트"></canvas></div></div></div></section>`;
+  // 비용 구성 + 대분류
+  const catRows=W?sortDesc(W.catAgg):[], catTot=catRows.reduce((s,[,v])=>s+v.amt,0);
+  const venRows=W?sortDesc(W.vendAgg):[], venTot=venRows.reduce((s,[,v])=>s+v.amt,0);
+  const costItems=[['홍보문자',promo.total],['PG수수료',pg],['WISA이용료',wf.ready?wf.total:null],['영업이익',mallProfit]];
+  h+=`<div class="grid2"><section><h2>부자재몰 매출 구성</h2><p class="desc">입점사 수수료 수익 = 비용 + 영업이익</p>
+    ${tbl('costTable','매출구성',['항목','금액'], costItems.map(([k,v])=>[k,won(v)]), ['총 매출(입점사 수수료)', won(settleFee)])}
+    <div class="chartbox" style="height:200px"><canvas id="costChart" role="img" aria-label="부자재몰 매출 구성 도넛 차트"></canvas></div></section>
+    <section><h2>상품 대분류별 거래액</h2><p class="desc">예치금·할인 반영 보정</p>
+    ${catRows.length? tbl('catTable','대분류별',['대분류','거래액','비중','수량'], catRows.map(([k,v])=>[esc(k),won(v.amt),pct(v.amt/catTot),v.qty.toLocaleString()]), ['합계',won(catTot),'100%',W.totalQty.toLocaleString()])
+      +`<div class="legend" id="catLegend"></div><div class="chartbox" style="height:200px"><canvas id="catChart" role="img" aria-label="대분류별 거래액 도넛 차트"></canvas></div>` : empty('위사 주문(주문상품 기준) 파일이 필요해요')}</section></div>`;
+  // 입점사별
+  h+=`<section><h2>입점사별 거래액</h2><p class="desc">빈 입점사명은 제일무역(자사)로 표기</p>
+    ${venRows.length? `<div class="grid2"><div>${tbl('venTable','입점사별',['입점사','거래액','비중','수량'], venRows.map(([k,v])=>[esc(k),won(v.amt),pct(v.amt/venTot),v.qty.toLocaleString()]), ['합계',won(venTot),'100%',venRows.reduce((s,[,v])=>s+v.qty,0).toLocaleString()])}</div>
+      <div><div class="chartbox" style="height:${Math.max(220,venRows.length*30+60)}px"><canvas id="venChart" role="img" aria-label="입점사별 거래액 가로 막대 차트"></canvas></div></div></div>` : empty('위사 주문(주문상품 기준) 파일이 필요해요')}</section>`;
+  if(W&&W.warns.length) h+=W.warns.map(w=>`<div class="warn">⚠ ${w}</div>`).join('');
+
+  /* ===== 2. 손익 ===== */
+  const pr=v=>v==null?'—':won(v);
+  h+=`<section class="pb"><h2>부자재몰 운영 손익 (자사상품 제외)</h2>
+    ${tbl('mallTable','부자재몰손익',['구분','항목','금액','비고'],[
+      R_(['매출','입점사 수수료 수익', pr(settleFee), F.settle?`입점사 ${new Set(F.settle.rows.map(r=>r.name)).size}곳`:'정산 파일 필요'],''),
+      R_(['','매출 소계', pr(settleFee), ''],'sub'),
+      ['비용','홍보 문자·팩스 발송', pr(promo.total), promo.ready?'아래 상세 참조':'뿌리오 파일 필요'],
+      ['','PG사 결제 수수료', pr(pg), pay?'카드 + 무통장':'위사 주문 파일 필요'],
+      ['','WISA 서비스 이용료', wf.ready?pr(wf.total):'—', wf.ready?'월 환산':'설정·메세지 파일 필요'],
+      R_(['','비용 소계', pr(mallCost), ''],'sub'),
+      R_(['★','부자재몰 운영 영업이익', pr(mallProfit), mallProfit!=null&&settleFee?'영업이익률 '+pct(mallProfit/settleFee):''],'star')
+    ],null,[null,'l',null,'l'])}</section>`;
+  const rp=v=>v==null?'—':won(v);
+  h+=`<section><h2>자사상품 손익 (제일리본)</h2><p class="desc">${MM}월 발송분 기준 · 1박스 = ${rb.boxRolls}롤</p>
+    <div class="grid2"><div>${tbl('ribbonSale','제일리본판매',['항목','수량/금액'],[
+      ['총 판매 수량', rb.rolls.toLocaleString()+'롤 ('+rb.boxes+'박스)'],
+      ['총 판매 금액', won(rb.soldAmt)+'원'],
+      ['당월 판매분 환불', rb.rfCur+'롤'],
+      ['이전 판매분 환불', rb.rfPrev+'롤'],
+      ['총 환불 금액', won(rb.rfAmt)+'원'],
+      ['순 판매 수량', (rb.rolls-rb.rfRolls).toLocaleString()+'롤'],
+      ['환불률 (수량 / 금액)', pct(rb.rolls?rb.rfRolls/rb.rolls:null)+' / '+pct(rb.soldAmt?rb.rfAmt/rb.soldAmt:null)]
+    ])}</div><div>${tbl('ribbonPL','제일리본손익',['항목','금액(원)'],[
+      ['판매 매출', won(rb.soldAmt)],
+      ['환불 비용', won(rb.rfAmt)],
+      R_(['순매출', won(rb.net)],'sub'),
+      ['상품 원가 ('+rb.rolls+'롤 × '+won(CFG.롤당원가)+')', CFG.롤당원가?won(rb.cost):'— (설정 필요)'],
+      R_(['매출총이익', CFG.롤당원가?won(rb.gross):'—'],'sub'),
+      ['물류/택배비 (3PL, 부가세 포함)', rb.logi==null?'<span class="badge">청구서 대기</span>':won(rb.logi)+(rb.logiSrc==='manual'?' <span class="badge">직접 입력</span>':'')],
+      R_(['★ 자사상품 영업이익', rp(rb.profit)+(rb.profit!=null&&rb.soldAmt?' ('+pct(rb.profit/rb.soldAmt)+')':'')],'star')
+    ])}</div></div></section>`;
+
+  /* ===== 3. 비용 상세 ===== */
+  h+=`<section class="pb"><h2>홍보문자 & 팩스 발송</h2><p class="desc">발송 횟수 = 본 발송 회차 수 (${CFG.테스트기준}건 이하 테스트 발송은 같은 날 회차에 포함)</p>
+    ${tbl('promoTable','홍보문자요약',['종류','건당 단가','발송 횟수','발송 건수','비용','비고'],
+      promo.lines.map(l=>[l.k, won(l.u)+'원', l.r==null?'—':l.r+'회', l.q==null?'—':l.q.toLocaleString()+'건', l.cost==null?'—':wonD(l.cost)+(l.cost?'원':''), l.k==='LG 웹팩스'?(promo.faxNote||'후불청구, 예상단가'):'']),
+      ['총 발송 비용','', pp?(pp.mainDates.length+num($('#faxNone').checked?0:$('#faxRounds').value))+'회':'—', promo.lines.every(l=>l.q!=null)?promo.lines.reduce((s,l)=>s+l.q,0).toLocaleString()+'건':'—', promo.total==null?'—':won(promo.total)+'원',''],
+      [null,null,null,null,null,'l'])}
+    ${copyBtns('promoTable')}
+    ${pp&&pp.rows.length? '<h2 style="margin-top:16px;font-size:14px">뿌리오 발송 상세</h2>'+tbl('ppTable','뿌리오상세',['발송회차','발송일','제목','내용','차감금액','잔여금액','발송수량'],
+      pp.rows.map(r=>R_([r.round, ymdStr(r.d), esc(r.title), esc(r.type), won(r.used), won(r.bal), r.qty.toLocaleString()], r.test?'':'' )),null,[null,null,'l','l'])+copyBtns('ppTable',true)
+      : (F.ppurio? empty(MM+'월 뿌리오 발송이 없어요') : '')}</section>`;
+  h+=`<section><h2>PG 결제수수료 추정</h2>
+    ${pay? tbl('payTable','PG수수료',['방식','수수료율','총 결제금액','건수','수수료','수수료 제외 결제액'], pay.rows.map(r=>[r[0],r[1],wonD(r[2]),r[3].toLocaleString(),wonD(r[4]),wonD(r[5])]),
+      [pay.tot[0],'',won(pay.tot[2]),pay.tot[3].toLocaleString(),won(pay.tot[4]),won(pay.tot[5])],[null,'l']) + copyBtns('payTable',true) : empty('위사 주문(주문번호 기준) 파일이 필요해요')}</section>`;
+  const wrows=wf.rows.map(r=>[esc(r.name), won(r.amt), esc(r.cycle), won(r.monthly), esc(r.renew)]);
+  wrows.push(['메시지 충전금 사용 ('+MM+'월 포인트)', '', '소진 시마다', wf.msgPts==null?'—':won(wf.msgPts), '']);
+  h+=`<div class="grid2"><section><h2>위사 월 이용료 환산</h2>
+    ${WFEES.length? tbl('wisaFee','위사이용료',['항목','결제 금액','주기','월 환산','재결제일'], wrows, ['월 환산 금액','','',wf.ready?won(wf.total):'—',''],['l']) : empty('설정 파일의 위사이용료 탭이 필요해요')}</section>
+    <section><h2>위사 메시지 발송 (${MM}월)</h2>
+    ${wf.msg? tbl('msgTable','위사메세지',['구분','성공','실패','포인트(성공)'], wf.msg.groups.filter(g=>g.label!=='총합계').map(g=>[g.label,g.sOk.toLocaleString(),g.sNo.toLocaleString(),won(g.pOk)]),
+      (()=>{const t=wf.msg.groups.find(g=>g.label==='총합계'); return t?['총합계',t.sOk.toLocaleString(),t.sNo.toLocaleString(),won(t.pOk)]:null;})()) + '<p class="note">발송 실패건은 포인트 반환</p>' : empty('위사 메세지 월별통계 파일이 필요해요')}</section></div>`;
+
+  /* ===== 4. 입점사 수수료 + 상세 ===== */
+  h+=`<section class="pb"><h2>입점사별 수수료 (${MM}월 정산)</h2><p class="desc">계좌·수수료율은 보고서에 넣지 않아요. 배송비는 수수료 제외 · 배송완료일 기준 정산이라 주문일 기준 매출과 다를 수 있어요.</p>
+    ${F.settle? tbl('settleTable','입점사수수료',['업체명','입점수수료','정산금액','비고'], F.settle.rows.map(r=>[esc(r.name),won(r.fee),won(r.pay),esc(r.note)]),
+      ['합계',won(settleFee),won(F.settle.rows.reduce((s,r)=>s+r.pay,0)),''],[null,null,null,'l']) : empty('입점사 정산 파일이 필요해요')}</section>`;
+  if(W && Object.keys(W.prodByCat).length){
+    let rows=[]; catRows.forEach(([cat])=>{ rows.push(R_([esc(cat),'',''],'sub'));
+      Object.entries(W.prodByCat[cat]).sort((a,b)=>b[1].amt-a[1].amt).slice(0,5).forEach(([nm,v])=>rows.push([esc(nm),won(v.amt),v.qty.toLocaleString()])); });
+    h+=`<section><h2>대분류별 세부 상품 TOP 5</h2>${tbl('prodTable','세부상품TOP5',['상품명','거래액','수량'],rows,null,['l'])}</section>`;
+  }
+
+  /* ===== 5. 제일리본 상세 ===== */
+  h+=`<section class="pb"><h2>제일리본 발송분 (${MM}월)</h2><p class="desc">수령자·연락처·주소는 넣지 않아요.</p>
+    ${rb.sold.length? tbl('ribbonList','제일리본발송',['번호','주문날짜','발송날짜','수량(box)','주문번호','주문금액','비고'], rb.sold.map((r,i)=>[i+1,ymdStr(r.od),ymdStr(r.sd),r.q,esc(r.no),won(r.amt),esc(r.note)]),
+      ['합계','','',rb.boxes,'',won(rb.soldAmt),''],[null,null,null,null,null,null,'l']) : empty('제일리본 발주서 파일이 필요해요')}
+    <h2 style="margin-top:16px;font-size:14px">제일리본 환불 (${MM}월 처리)</h2>
+    ${rb.refunds.length? tbl('refundList','제일리본환불',['처리일','주문일','주문번호','구분','사유','환불 수량','환불 금액','판매월'], rb.refunds.map(r=>[ymdStr(r.pd),ymdStr(r.od),esc(r.no),esc(r.kind),esc(r.why),r.rolls+'롤',won(r.amt),r.cur?'당월':'이전']),
+      ['합계','','','','',rb.rfRolls+'롤',won(rb.rfAmt),''],[null,null,null,'l','l']) : empty(F.refund?MM+'월 자사상품 환불 없음':'환불 시트를 넣으면 표시돼요')}</section>`;
+
+  $('#report').innerHTML=h;
+
+  /* 차트 */
+  const animOff={animation:false,responsive:true,maintainAspectRatio:false,devicePixelRatio:2};
+  charts.push(new Chart($('#monChart'),{type:'bar',data:{labels:[...Array(12)].map((_,i)=>(i+1)+'월'),datasets:[
+      {label:(Y-1)+'년',data:yrPrev,backgroundColor:'#A5A5A5',borderRadius:3},{label:Y+'년',data:yr,backgroundColor:'#2E5496',borderRadius:3}]},
+    options:{...animOff,plugins:{legend:{position:'top',labels:{boxWidth:12}},tooltip:{callbacks:{label:c=>c.dataset.label+': '+won(c.raw)+'원'}}},
+      scales:{y:{ticks:{callback:v=>(v/10000).toLocaleString()+'만'}},x:{grid:{display:false}}}}}));
+  const ci=costItems.filter(([,v])=>v!=null&&v>0);
+  if(ci.length) charts.push(new Chart($('#costChart'),{type:'doughnut',data:{labels:ci.map(x=>x[0]),datasets:[{data:ci.map(x=>Math.round(x[1])),backgroundColor:['#5B9BD5','#ED7D31','#A5A5A5','#70AD47'],borderColor:'#fff',borderWidth:2}]},
+    options:{...animOff,cutout:'55%',plugins:{legend:{position:'right',labels:{boxWidth:12}},tooltip:{callbacks:{label:c=>c.label+': '+won(c.raw)+'원'}}}}}));
   if(catRows.length){
-    const aoa=[['대분류','거래액','비중(%)','수량']];
-    catRows.forEach(([k,v])=>aoa.push([k,Math.round(v.amt),+(v.amt/catTot*100).toFixed(1),v.qty]));
-    aoa.push(['합계',Math.round(catTot),100,R.totalQty]);
-    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(aoa), '대분류별');
+    $('#catLegend').innerHTML=catRows.map((r,i)=>`<span><i style="background:${catColor(r[0],i)}"></i>${esc(r[0])} ${pct(r[1].amt/catTot)}</span>`).join('');
+    charts.push(new Chart($('#catChart'),{type:'doughnut',data:{labels:catRows.map(r=>r[0]),datasets:[{data:catRows.map(r=>Math.round(r[1].amt)),backgroundColor:catRows.map((r,i)=>catColor(r[0],i)),borderColor:'#fff',borderWidth:2}]},
+      options:{...animOff,cutout:'55%',plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>c.label+': '+won(c.raw)+'원'}}}}}));
   }
-  if(venRows.length){
-    const aoa=[['입점사','거래액','비중(%)','수량']];
-    const vq=venRows.reduce((s,[,v])=>s+v.qty,0);
-    venRows.forEach(([k,v])=>aoa.push([k,Math.round(v.amt),+(v.amt/venTot*100).toFixed(1),v.qty]));
-    aoa.push(['합계',Math.round(venTot),100,vq]);
-    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(aoa), '입점사별');
-  }
-  if(Object.keys(R.prodByCat).length){
-    const aoa=[['대분류','상품명','거래액','수량']];
-    catRows.forEach(([cat])=>{
-      Object.entries(R.prodByCat[cat]).sort((a,b)=>b[1].amt-a[1].amt).slice(0,5)
-        .forEach(([nm,v])=>aoa.push([cat,nm,Math.round(v.amt),v.qty]));
-    });
-    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(aoa), '세부상품TOP');
-  }
-  XLSX.writeFile(wb, '매출통계_'+new Date().toISOString().slice(0,10).replace(/-/g,'')+'.xlsx');
-  toast('엑셀을 다운로드했어요.');
+  if(venRows.length) charts.push(new Chart($('#venChart'),{type:'bar',data:{labels:venRows.map(r=>r[0]),datasets:[{data:venRows.map(r=>Math.round(r[1].amt)),backgroundColor:'#2E5496',borderRadius:3}]},
+    options:{...animOff,indexAxis:'y',plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>won(c.raw)+'원'}}},scales:{x:{ticks:{callback:v=>(v/10000).toLocaleString()+'만'}},y:{grid:{display:false}}}}}));
+  snapCharts();
 }
+/* 인쇄용: 그래프를 이미지로 바꿔 PDF에서 잘리지 않게 */
+function snapCharts(){
+  charts.forEach(c=>{ const box=c.canvas.parentNode; let img=box.querySelector('img.pimg');
+    if(!img){ img=document.createElement('img'); img.className='pimg'; img.alt=c.canvas.getAttribute('aria-label')||''; box.appendChild(img); }
+    img.src=c.toBase64Image(); });
+}
+
+/* ---------------- 복사 · 내보내기 ---------------- */
+function copyTable(id, withHead){
+  const t=document.getElementById(id); if(!t) return;
+  const out=[];
+  t.querySelectorAll(withHead?'tr':'tbody tr, tfoot tr').forEach(tr=>out.push([...tr.querySelectorAll('th,td')].map(td=>td.textContent.replace(/\s+/g,' ').trim()).join('\t')));
+  navigator.clipboard.writeText(out.join('\n')).then(()=>toast(withHead?'표를 복사했어요. 엑셀에 붙여넣기(Ctrl+V) 하세요.':'제목 줄 없이 복사했어요. 첫 데이터 칸을 선택하고 붙여넣으세요.'));
+}
+function cellVal(s){ s=s.trim(); if(/^-?[\d,]+(\.\d+)?$/.test(s)) return num(s); if(/^-?[\d.]+%$/.test(s)) return num(s)/100; return s; }
+function downloadExcel(){
+  const tables=[...document.querySelectorAll('#report table[data-sheet]')]; if(!tables.length){ toast('먼저 자료를 넣어 주세요.'); return; }
+  const wb=XLSX.utils.book_new(), used=new Set();
+  tables.forEach(t=>{ let n=t.dataset.sheet.slice(0,28); while(used.has(n)) n+='_'; used.add(n);
+    const aoa=[...t.querySelectorAll('tr')].map(tr=>[...tr.querySelectorAll('th,td')].map(td=>cellVal(td.textContent)));
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(aoa), n); });
+  XLSX.writeFile(wb, '월간매출보고_'+M()+'.xlsx');
+}
+function downloadSettings(){
+  const cur=window.__cur||{};
+  const h={...HIST}; const k=cur.m;
+  if(k){ h[k]={...(h[k]||{})}; if(cur.sales!=null) h[k].sales=Math.round(cur.sales); if(cur.mall!=null) h[k].mall=Math.round(cur.mall); if(cur.ribbon!=null) h[k].ribbon=Math.round(cur.ribbon); }
+  const wb=XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([['항목','값','설명'], ...Object.keys(DEF).map(k=>[k, CFG[k], CFG_DESC[k]||''])]), '설정');
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([['항목','결제금액','주기','개월수','재결제일'], ...WFEES.map(w=>[w.name,w.amt,w.cycle,w.months,w.renew])]), '위사이용료');
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([['월','사이트거래액','부자재몰영업이익','제일리본영업이익'], ...Object.keys(h).sort().map(k=>[k,h[k].sales??'',h[k].mall??'',h[k].ribbon??''])]), '월별이력');
+  XLSX.writeFile(wb, '매출보고_설정.xlsx');
+  toast(settingsLoaded?'이번 달 값을 반영한 설정 파일을 내려받았어요. 기존 파일 대신 보관하세요.':'빈 설정 양식을 내려받았어요. 값을 채워서 다음에 같이 넣어 주세요.');
+}
+function printPDF(){ snapCharts(); setTimeout(()=>window.print(),100); }
+window.addEventListener('beforeprint',snapCharts);
+
+/* ---------------- 시작 ---------------- */
+(function init(){
+  const d=new Date(); d.setDate(1); d.setMonth(d.getMonth()-1);
+  $('#month').value=d.getFullYear()+'-'+pad(d.getMonth()+1);
+  $('#cardRate').value=CFG.카드수수료율; $('#bankFee').value=CFG.무통장건당;
+  ['month','cardRate','bankFee','faxRounds','faxCount','faxNone','tplManual','settleOk'].forEach(id=>{
+    const el=document.getElementById(id); el.addEventListener('input',renderAll); el.addEventListener('change',renderAll); });
+  renderAll();
+})();
 </script>
 </body>
 </html>
