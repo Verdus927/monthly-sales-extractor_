@@ -67,6 +67,8 @@
   .kpi .cmp{font-size:12.5px;color:var(--muted);margin-top:6px;display:grid;grid-template-columns:auto 1fr auto;gap:1px 10px;font-variant-numeric:tabular-nums;white-space:nowrap}
   .kpi .knote{font-size:12px;color:var(--muted);margin-top:6px;border-top:1px dashed var(--line);padding-top:6px}
   .subh{margin:16px 0 6px;font-size:13.5px;color:var(--txt)}
+  .kcum{margin-top:6px;padding:6px 8px;background:var(--color-primary-soft);border-radius:6px;font-size:12.5px;display:flex;flex-wrap:wrap;gap:2px 8px;align-items:baseline;color:var(--muted)}
+  .kcum b{color:var(--navy);font-size:14px} .kcum small{font-weight:400;color:var(--muted)}
   section{background:#fff;border:1px solid var(--line);border-radius:12px;padding:18px 18px 20px;margin:14px 0}
   section h2{margin:0 0 4px;font-size:16px;color:var(--navy)}
   section .desc{font-size:12.5px;color:var(--muted);margin:0 0 12px}
@@ -126,7 +128,8 @@
     thead{display:table-header-group}
     tfoot{display:table-row-group}
     tr{break-inside:avoid;page-break-inside:avoid}
-    tbody tr:last-child,tr.group{break-after:avoid;page-break-after:avoid}
+    table:has(tfoot) tbody tr:last-child,tr.group{break-after:avoid;page-break-after:avoid}
+    tbody.grp{break-inside:avoid;page-break-inside:avoid}
     th,td{padding:4px 6px;white-space:normal}
     td.num,th.num{white-space:nowrap}
     .kpi{padding:8px 10px}
@@ -618,7 +621,8 @@ const empty=t=>`<div class="empty">${t}</div>`;
 /* tbl: kind='detail' → 상세 근거 표(연회색 헤더) */
 function tbl(id, sheet, head, rows, foot, cls, kind){
   const c=i=>cls&&cls[i]?` class="${cls[i]}"`:'';
-  return `<div class="tblwrap"><table id="${id}" data-sheet="${sheet||''}"${kind?` class="${kind}"`:''}><thead><tr>${head.map((h,i)=>`<th${c(i)}>${h}</th>`).join('')}</tr></thead><tbody>`+
+  const small = rows.length<=15;
+  return `<div class="tblwrap${small?' blk':''}"><table id="${id}" data-sheet="${sheet||''}"${kind?` class="${kind}"`:''}><thead><tr>${head.map((h,i)=>`<th${c(i)}>${h}</th>`).join('')}</tr></thead><tbody>`+
     rows.map(r=>`<tr${r._c?` class="${r._c}"`:''}>${r.map((v,i)=>`<td${c(i)}>${v}</td>`).join('')}</tr>`).join('')+
     `</tbody>${foot?`<tfoot><tr>${foot.map((v,i)=>`<td${c(i)}>${v}</td>`).join('')}</tr></tfoot>`:''}</table></div>`;
 }
@@ -632,11 +636,11 @@ function delta(cur, prev){
   return `<span class="${d>=0?'pos':'neg'}">${d>=0?'▲ +':'▼ −'}${Math.abs(d*100).toFixed(1)}%</span>`;
 }
 const chg=(cur,prev)=> cur==null||prev==null||!prev ? null : (cur-prev)/Math.abs(prev);
-function kpi({label, val, state, note, prev, prevY}){
+function kpi({label, val, state, note, prev, prevY, extra}){
   const v = state==='pending' ? '<span class="pending">산정 중</span>' : state==='na' ? '<span class="muted" style="font-size:16px">자료 없음</span>' : won(val)+'<span style="font-size:14px">원</span>';
   const line=(t,p)=>`<span>${t}</span><span class="num" style="text-align:right">${p==null?'—':won(p)}</span><span style="text-align:right">${state?'':delta(val,p)}</span>`;
   return `<div class="kpi"><div class="lbl">${label}</div><div class="val">${v}</div>
-    <div class="cmp">${line('전월',prev)}${line('전년 동월',prevY)}</div>${note?`<div class="knote">${note}</div>`:''}</div>`;
+    <div class="cmp">${line('전월',prev)}${line('전년 동월',prevY)}</div>${extra||''}${note?`<div class="knote">${note}</div>`:''}</div>`;
 }
 
 function renderAll(){
@@ -668,8 +672,11 @@ function renderAll(){
   let h='';
   /* ===== A. 경영 요약 ===== */
   h+=`<div class="rpt-head"><h2>베스트꽃자재연구소 월간 매출 보고서</h2><p>보고 기간: ${monthLabel(m)}</p>${missing.length?`<div class="miss">자료 상태: 미완료 ${missing.length}건 (${missing.join(', ')})</div>`:'<div class="miss">자료 상태: 모두 확인됨</div>'}</div>`;
-  h+=`<div class="kpis">${kpi({label:'사이트 총 거래액', val:sales, state: sales==null?'na':'', prev:H(prevM).sales, prevY:H(prevY).sales, note:'위사 실결제 금액 합계 (예치금·할인 차감 후)'})}
-    ${kpi({label:'부자재몰 영업이익', val:mallProfit, state: mallProfit==null?'na':'', prev:H(prevM).mall, prevY:H(prevY).mall, note: mallProfit!=null?`영업이익률 <b>${pct(mallRate)}</b> · PG 수수료 추정치 반영`:''})}
+  const _yr=[], _yp=[]; for(let i=1;i<=MM;i++){ const k=Y+'-'+pad(i); _yr.push(k===m&&sales!=null?sales:(H(k).sales??null)); _yp.push(H((Y-1)+'-'+pad(i)).sales??null); }
+  const cumCur=_yr.every(v=>v!=null)?_yr.reduce((a,b)=>a+b,0):null, cumPrev=_yp.every(v=>v!=null)?_yp.reduce((a,b)=>a+b,0):null;
+  const cumLine = cumCur!=null ? `<div class="kcum"><span>1~${MM}월 누적</span><b>${won(cumCur)}원</b>${cumPrev?delta(cumCur,cumPrev).replace('</span>',' <small>전년 동기</small></span>'):''}</div>` : '';
+  h+=`<div class="kpis">${kpi({label:'사이트 총 거래액', val:sales, state: sales==null?'na':'', prev:H(prevM).sales, prevY:H(prevY).sales, extra:cumLine, note:'위사 실결제 금액 합계 (예치금·할인 차감 후)'})}
+    ${kpi({label:'부자재몰 영업이익', val:mallProfit, state: mallProfit==null?'na':'', prev:H(prevM).mall, prevY:H(prevY).mall, note: mallProfit!=null?`영업이익률 <b>${pct(mallRate)}</b><br>PG 수수료 추정 반영`:''})}
     ${kpi({label:'제일리본 영업이익', val:rb.profit, state:ribbonState, prev:H(prevM).ribbon, prevY:H(prevY).ribbon, note:ribbonNote})}</div>`;
   // 한 줄 해석 (데이터로 자동 생성)
   const sen=[];
@@ -775,9 +782,10 @@ function renderAll(){
 
   /* ===== D. 상세 부록 ===== */
   if(W && Object.keys(W.prodByCat).length){
-    let rows=[]; catRows.forEach(([cat])=>{ rows.push(R_([esc(cat),'',''],'group'));
-      Object.entries(W.prodByCat[cat]).sort((a,b)=>b[1].amt-a[1].amt).slice(0,5).forEach(([nm,v],i)=>rows.push([`${i+1}. ${esc(nm)}`,won(v.amt),v.qty.toLocaleString()])); });
-    h+=`<section><h2>부록 · 대분류별 세부 상품 TOP 5</h2><p class="desc">단위: 원 · 대분류 안에서 거래액 순</p>${tbl('prodTable','세부상품TOP5',['상품명','거래액','수량'],rows,null,['l','num','num'],'detail')}</section>`;
+    // 상품군마다 tbody 하나 → 인쇄 때 상품군 제목과 5개 행이 함께 움직임
+    const groups=catRows.map(([cat])=>`<tbody class="grp"><tr class="group"><td colspan="3">${esc(cat)}</td></tr>`+
+      Object.entries(W.prodByCat[cat]).sort((a,b)=>b[1].amt-a[1].amt).slice(0,5).map(([nm,v],i)=>`<tr><td class="l">${i+1}. ${esc(nm)}</td><td class="num">${won(v.amt)}</td><td class="num">${v.qty.toLocaleString()}</td></tr>`).join('')+'</tbody>').join('');
+    h+=`<section><h2>부록 · 대분류별 세부 상품 TOP 5</h2><p class="desc">단위: 원 · 대분류 안에서 거래액 순</p><div class="tblwrap"><table id="prodTable" data-sheet="세부상품TOP5" class="detail"><thead><tr><th class="l">상품명</th><th class="num">거래액</th><th class="num">수량</th></tr></thead>${groups}</table></div></section>`;
   }
   h+=`<section><h2>부록 · 제일리본 발송 · 환불 내역 (${MM}월)</h2><p class="desc">수령자·연락처·주소는 넣지 않아요</p>
     <h3 class="subh">발송분</h3>
