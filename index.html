@@ -127,7 +127,7 @@
       <label>카드 수수료율 <input type="number" id="cardRate" step="0.1">%</label>
       <label>무통장 건당 <input type="number" id="bankFee" step="50">원</label>
     </div>
-    <p class="note">설정 파일(매출보고_설정.xlsx)을 아래에 같이 넣으면 단가·원가·위사 이용료·월별 이력이 채워져요. 민감한 값은 이 페이지에 저장되지 않아요.</p>
+    <p class="note">설정 파일(매출보고_설정.xlsx)을 아래에 같이 넣으면 문자 단가·제일리본 원가·위사 연간 이용료·월별 거래액/영업이익 이력이 채워져요. 입점사 수수료는 정산 파일에서 읽어서 설정 파일에 안 넣어도 돼요.</p>
   </div>
 
   <div class="drop noprint" id="drop">
@@ -149,7 +149,6 @@
     </div>
     <div class="row" style="margin-top:8px">
       <label>3PL 청구 합계 직접 입력 <input type="number" id="tplManual" min="0" placeholder="파일 없을 때" style="width:130px">원</label>
-      <label><input type="checkbox" id="settleOk"> 입점사 정산은 이번 달 파일이 맞아요 (선정산 포함)</label>
     </div>
   </div>
 
@@ -356,8 +355,19 @@ function parseSettle(aoa,h,sheet,fname){
     if(!nm) continue;
     rows.push({name:nm, fee:num(r[c.fee]), pay:c.pay>=0?num(r[c.pay]):0, note:c.note>=0&&r[c.note]!=null?String(r[c.note]).replace(/\s+/g,' ').trim():''});
   }
-  return {rows, sheet, file:fname};
+  // 정산 월: 파일명 → 시트 위쪽 제목 순서로 찾기 (예: '26년 10월', '10월 정산')
+  let pm=periodFromText(fname);
+  if(!pm) for(const r of aoa.slice(0,h.idx)){ for(const c of (r||[])){ const x=periodFromText(c); if(x){ pm=x; break; } } if(pm) break; }
+  return {rows, sheet, file:fname, pm};
 }
+function periodFromText(t){
+  const s=String(t==null?'':t).replace(/\.[^.]+$/,'');
+  let m=s.match(/(\d{2,4})\s*년\s*(\d{1,2})\s*월/); if(m){ const y=+m[1]<100?2000+(+m[1]):+m[1]; return {y, m:+m[2]}; }
+  m=s.match(/(?:^|[^\d])(\d{1,2})\s*월/); if(m && +m[1]>=1 && +m[1]<=12) return {y:null, m:+m[1]};
+  return null;
+}
+let settleOk=false;
+function toggleSettle(el){ settleOk=el.checked; renderAll(); }
 function parseTpl(aoa,sheet,fname){
   let period='', periodYM='', total=null, items=[], inBlock=false;
   const lastNum=r=>{ for(let j=r.length-1;j>=0;j--){ if(typeof r[j]==='number') return r[j]; } return null; };
@@ -531,7 +541,13 @@ function buildChecks(ctx){
   else add('ok','위사 메세지 월별통계',`${MM}월 포인트 ${won(ctx.wf.msgPts)}`);
   // 정산
   if(!F.settle) add('no','입점사 정산','입점사 수수료 수익(부자재몰 매출)에 필요해요.');
-  else add($('#settleOk').checked?'ok':'warn','입점사 정산',`'${esc(F.settle.sheet)}' 탭 ${F.settle.rows.length}줄, 수수료 합계 <b>${won(ctx.settleFee)}</b>원. 파일에 정산 월이 없어서 직접 확인 후 위 체크박스를 눌러 주세요.`);
+  else{
+    const base=`'${esc(F.settle.sheet)}' 탭 ${F.settle.rows.length}줄, 수수료 합계 <b>${won(ctx.settleFee)}</b>원`;
+    const pm=F.settle.pm;
+    if(pm && pm.m===MM && (pm.y==null || pm.y===Y)) add('ok','입점사 정산', base+` · 파일명 기준 <b>${pm.y?pm.y+'년 ':''}${pm.m}월</b> 정산분`);
+    else if(pm) add('warn','입점사 정산', base+` · 파일명은 <b>${pm.y?pm.y+'년 ':''}${pm.m}월</b> 정산분이에요. ${MM}월 정산 파일이 맞는지 확인해 주세요.`);
+    else add(settleOk?'ok':'warn','입점사 정산', base+`. 파일명에서 정산 월을 못 찾았어요.<br><label style="display:inline-flex;gap:6px;align-items:center;margin-top:4px;color:var(--txt)"><input type="checkbox" ${settleOk?'checked':''} onchange="toggleSettle(this)"> ${MM}월 정산 파일이 맞아요 (선정산 포함)</label>`);
+  }
   // 제일리본 발주서
   const rb=ctx.rb;
   if(!F.ribbon) add('no','제일리본 발주서','발송 기준 판매 수량·금액');
@@ -767,7 +783,7 @@ window.addEventListener('beforeprint',snapCharts);
   const d=new Date(); d.setDate(1); d.setMonth(d.getMonth()-1);
   $('#month').value=d.getFullYear()+'-'+pad(d.getMonth()+1);
   $('#cardRate').value=CFG.카드수수료율; $('#bankFee').value=CFG.무통장건당;
-  ['month','cardRate','bankFee','faxRounds','faxCount','faxNone','tplManual','settleOk'].forEach(id=>{
+  ['month','cardRate','bankFee','faxRounds','faxCount','faxNone','tplManual'].forEach(id=>{
     const el=document.getElementById(id); el.addEventListener('input',renderAll); el.addEventListener('change',renderAll); });
   renderAll();
 })();
