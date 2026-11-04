@@ -787,7 +787,8 @@ function renderAll(){
       Object.entries(W.prodByCat[cat]).sort((a,b)=>b[1].amt-a[1].amt).slice(0,5).map(([nm,v],i)=>`<tr><td class="l">${i+1}. ${esc(nm)}</td><td class="num">${won(v.amt)}</td><td class="num">${v.qty.toLocaleString()}</td></tr>`).join('')+'</tbody>').join('');
     h+=`<section><h2>부록 · 대분류별 세부 상품 TOP 5</h2><p class="desc">단위: 원 · 대분류 안에서 거래액 순</p><div class="tblwrap"><table id="prodTable" data-sheet="세부상품TOP5" class="detail"><thead><tr><th class="l">상품명</th><th class="num">거래액</th><th class="num">수량</th></tr></thead>${groups}</table></div></section>`;
   }
-  h+=`<section><h2>부록 · 제일리본 발송 · 환불 내역 (${MM}월)</h2><p class="desc">수령자·연락처·주소는 넣지 않아요</p>
+  // 발송+환불이 합쳐 25행 이하면 한 묶음으로 같이 이동 (따로 떨어지지 않게)
+  h+=`<section class="${rb.sold.length+rb.refunds.length<=25?'keep':''}"><h2>부록 · 제일리본 발송 · 환불 내역 (${MM}월)</h2><p class="desc">수령자·연락처·주소는 넣지 않아요</p>
     <h3 class="subh">발송분</h3>
     ${rb.sold.length? tbl('ribbonList','제일리본발송',['번호','주문날짜','발송날짜','수량(박스)','주문번호','주문금액(원)','비고'], rb.sold.map((r,i)=>[i+1,ymdStr(r.od),ymdStr(r.sd),r.q,esc(r.no),won(r.amt),esc(r.note)]),
       ['합계','','',rb.boxes,'',won(rb.soldAmt),''],[null,'num','num','num','num','num','l'],'detail') : empty('제일리본 발주서 파일이 필요해요')}
