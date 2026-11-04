@@ -71,6 +71,7 @@
   thead th{background:var(--navy);color:#fff;font-weight:600;border:none}
   tfoot td,tr.tot td{font-weight:700;background:#f0f3f8;border-top:2px solid var(--navy)}
   tr.sub td{background:#f7f8fb;font-weight:600}
+  tr.own td{background:#fff3e8;color:#b4540f;font-weight:700}
   tr.star td{font-weight:700;color:var(--navy);background:#eef2f8}
   .empty{color:var(--muted);font-size:13px;background:var(--nobg);border-radius:8px;padding:14px;text-align:center}
   .badge{display:inline-block;font-size:11px;border-radius:6px;padding:0 6px;margin-left:6px;vertical-align:middle;background:var(--wnbg);color:var(--wn);font-weight:600}
@@ -579,6 +580,7 @@ function renderChecks(C){
 const PAL=['#5B9BD5','#70AD47','#FFC000','#ED7D31','#A5A5A5','#2E5496','#9DC3E6','#c0504d','#8064a2'];
 const CATCOLOR={'리본':'#5B9BD5','대국':'#70AD47','화훼부자재':'#FFC000','조화':'#ED7D31','생화':'#A5A5A5'};
 const catColor=(n,i)=>CATCOLOR[String(n).trim()]||PAL[i%PAL.length];
+const isOwn=n=>String(n).includes('(자사)')||(CFG.자사입점사&&String(n).trim()===CFG.자사입점사);
 const sortDesc=agg=>Object.entries(agg).sort((a,b)=>b[1].amt-a[1].amt);
 const empty=t=>`<div class="empty">${t}</div>`;
 function tbl(id, sheet, head, rows, foot, cls){
@@ -646,7 +648,7 @@ function renderAll(){
       +`<div class="legend" id="catLegend"></div><div class="chartbox" style="height:200px"><canvas id="catChart" role="img" aria-label="대분류별 거래액 도넛 차트"></canvas></div>` : empty('위사 주문(주문상품 기준) 파일이 필요해요')}</section></div>`;
   // 입점사별
   h+=`<section><h2>입점사별 거래액</h2><p class="desc">빈 입점사명은 제일무역(자사)로 표기</p>
-    ${venRows.length? `<div class="grid2"><div>${tbl('venTable','입점사별',['입점사','거래액','비중','수량'], venRows.map(([k,v])=>[esc(k),won(v.amt),pct(v.amt/venTot),v.qty.toLocaleString()]), ['합계',won(venTot),'100%',venRows.reduce((s,[,v])=>s+v.qty,0).toLocaleString()])}</div>
+    ${venRows.length? `<div class="grid2"><div>${tbl('venTable','입점사별',['입점사','거래액','비중','수량'], venRows.map(([k,v])=>R_([esc(k),won(v.amt),pct(v.amt/venTot),v.qty.toLocaleString()], isOwn(k)?'own':'')), ['합계',won(venTot),'100%',venRows.reduce((s,[,v])=>s+v.qty,0).toLocaleString()])}</div>
       <div><div class="chartbox" style="height:${Math.max(220,venRows.length*30+60)}px"><canvas id="venChart" role="img" aria-label="입점사별 거래액 가로 막대 차트"></canvas></div></div></div>` : empty('위사 주문(주문상품 기준) 파일이 필요해요')}</section>`;
   if(W&&W.warns.length) h+=W.warns.map(w=>`<div class="warn">⚠ ${w}</div>`).join('');
 
@@ -737,7 +739,7 @@ function renderAll(){
     charts.push(new Chart($('#catChart'),{type:'doughnut',data:{labels:catRows.map(r=>r[0]),datasets:[{data:catRows.map(r=>Math.round(r[1].amt)),backgroundColor:catRows.map((r,i)=>catColor(r[0],i)),borderColor:'#fff',borderWidth:2}]},
       options:{...animOff,cutout:'55%',plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>c.label+': '+won(c.raw)+'원'}}}}}));
   }
-  if(venRows.length) charts.push(new Chart($('#venChart'),{type:'bar',data:{labels:venRows.map(r=>r[0]),datasets:[{data:venRows.map(r=>Math.round(r[1].amt)),backgroundColor:'#2E5496',borderRadius:3}]},
+  if(venRows.length) charts.push(new Chart($('#venChart'),{type:'bar',data:{labels:venRows.map(r=>r[0]),datasets:[{data:venRows.map(r=>Math.round(r[1].amt)),backgroundColor:venRows.map(r=>isOwn(r[0])?'#ED7D31':'#2E5496'),borderRadius:3}]},
     options:{...animOff,indexAxis:'y',plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>won(c.raw)+'원'}}},scales:{x:{ticks:{callback:v=>(v/10000).toLocaleString()+'만'}},y:{grid:{display:false}}}}}));
   snapCharts();
 }
