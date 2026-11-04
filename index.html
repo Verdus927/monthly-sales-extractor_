@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>월 매출 통계 추출기 · 베스트꽃자재연구소</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%231F3864'/%3E%3Crect x='7' y='17' width='4.5' height='8' rx='1' fill='%235B9BD5'/%3E%3Crect x='13.75' y='11' width='4.5' height='14' rx='1' fill='%2370AD47'/%3E%3Crect x='20.5' y='6' width='4.5' height='19' rx='1' fill='%23FFC000'/%3E%3C/svg%3E">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
 <style>
@@ -40,6 +41,7 @@
   table{width:100%;border-collapse:collapse;font-size:13px}
   th,td{padding:8px 10px;border-bottom:1px solid var(--line);text-align:right}
   th:first-child,td:first-child{text-align:left}
+  #payTable td:nth-child(2),#payTable th:nth-child(2){text-align:left}
   thead th{background:var(--navy);color:#fff;font-weight:600;border:none}
   tfoot td{font-weight:700;background:#f0f3f8;border-top:2px solid var(--navy)}
   .bar-cell{position:relative}
@@ -222,7 +224,9 @@ function render(R){
         '카드 수수료율 <input id="cardRate" type="number" step="0.1" value="3.5">% &nbsp; '+
         '무통장 건당 <input id="bankFee" type="number" step="50" value="400">원'+
       '</div><div id="payTableBox"></div>'+
-      '<div class="btnrow"><button onclick="copyTable(\'payTable\')">표 복사</button></div></section>';
+      '<div class="btnrow"><button class="primary" onclick="copyPay(false)">보고서용 복사 (값만)</button>'+
+      '<button onclick="copyPay(true)">제목 줄 포함 복사</button></div>'+
+      '<p class="desc" style="margin-top:8px">\'PG 결제수수료 추정 상세\' 시트의 <b>신용카드 결제</b> 칸(A4)을 클릭하고 붙여넣으면 계까지 한 번에 채워져요.</p></section>';
   }
   // 대분류별
   if(catRows.length){
@@ -279,21 +283,44 @@ function tableHTML(id, heads, rows, totAmt, totQty){
   return h;
 }
 
-function renderPay(payAgg){
-  const cr = num($('#cardRate').value)/100, bf = num($('#bankFee').value);
-  const rows = Object.entries(payAgg).sort((a,b)=>b[1].amt-a[1].amt);
-  let tot={cnt:0,amt:0,fee:0};
-  let body='';
-  rows.forEach(([pm,v])=>{
-    let fee=0;
-    if(pm.includes('카드')) fee=v.amt*cr;
-    else if(pm.includes('무통장')) fee=v.cnt*bf;
-    const net=v.amt-fee;
-    tot.cnt+=v.cnt; tot.amt+=v.amt; tot.fee+=fee;
-    body+='<tr><td>'+esc(pm)+'</td><td>'+v.cnt.toLocaleString()+'</td><td>'+won(v.amt)+'</td><td>'+won(fee)+'</td><td>'+won(net)+'</td></tr>';
+// 보고서(PG 결제수수료 추정 상세) 양식과 같은 순서·열로 행을 만든다
+const PAY_HEAD=['방식','수수료율','총 결제금액','건수','수수료','수수료 제외 결제액'];
+function payRows(payAgg){
+  const cr = num($('#cardRate').value), bf = num($('#bankFee').value);
+  const fixed = {card:{label:'신용카드 결제',rate:cr+'%',cnt:0,amt:0,fee:0},
+                 bank:{label:'무통장입금',rate:'건당 '+bf.toLocaleString()+'원 추정',cnt:0,amt:0,fee:0},
+                 dep:{label:'예치금',rate:'',cnt:0,amt:0,fee:0}};
+  const extra = {};
+  Object.entries(payAgg).forEach(([pm,v])=>{
+    let g;
+    if(pm.includes('카드')){ g=fixed.card; g.fee+=v.amt*cr/100; }
+    else if(pm.includes('무통장')){ g=fixed.bank; g.fee+=v.cnt*bf; }
+    else if(pm.includes('예치금')){ g=fixed.dep; }
+    else { g = extra[pm] = extra[pm] || {label:pm,rate:'',cnt:0,amt:0,fee:0}; }
+    g.cnt+=v.cnt; g.amt+=v.amt;
   });
-  $('#payTableBox').innerHTML='<table id="payTable"><thead><tr><th>결제방법</th><th>건수</th><th>실결제액</th><th>수수료(추정)</th><th>수수료 제외</th></tr></thead><tbody>'+body+
-    '</tbody><tfoot><tr><td>계</td><td>'+tot.cnt.toLocaleString()+'</td><td>'+won(tot.amt)+'</td><td>'+won(tot.fee)+'</td><td>'+won(tot.amt-tot.fee)+'</td></tr></tfoot></table>';
+  const list=[fixed.card, fixed.bank, fixed.dep, ...Object.values(extra)];
+  const rows=list.map(g=>[g.label,g.rate,g.amt,g.cnt,g.fee,g.amt-g.fee]);
+  const t=rows.reduce((a,r)=>{a.amt+=r[2];a.cnt+=r[3];a.fee+=r[4];return a;},{amt:0,cnt:0,fee:0});
+  rows.push(['계','',t.amt,t.cnt,t.fee,t.amt-t.fee]);
+  return rows;
+}
+function payCellText(r){ // 0원은 보고서처럼 '-'로
+  const m=v=>Math.round(v)===0?'-':won(v);
+  return [r[0], r[1], m(r[2]), r[3].toLocaleString(), m(r[4]), m(r[5])];
+}
+function renderPay(payAgg){
+  const rows=payRows(payAgg), last=rows.length-1;
+  let body='';
+  rows.slice(0,last).forEach(r=>{ body+='<tr>'+payCellText(r).map(c=>'<td>'+esc(c)+'</td>').join('')+'</tr>'; });
+  $('#payTableBox').innerHTML='<table id="payTable"><thead><tr>'+PAY_HEAD.map(h=>'<th>'+h+'</th>').join('')+'</tr></thead><tbody>'+body+
+    '</tbody><tfoot><tr>'+payCellText(rows[last]).map(c=>'<td>'+esc(c)+'</td>').join('')+'</tr></tfoot></table>';
+  window.__payRows=rows;
+}
+function copyPay(withHead){
+  const lines=(window.__payRows||[]).map(r=>payCellText(r).join('\t'));
+  if(withHead) lines.unshift(PAY_HEAD.join('\t'));
+  navigator.clipboard.writeText(lines.join('\n')).then(()=>toast(withHead?'제목 줄 포함으로 복사했어요. A3 칸에 붙여넣으세요.':'복사했어요. 보고서의 A4 칸(신용카드 결제)에 붙여넣으세요.'));
 }
 
 function drawDonut(rows, tot){
@@ -331,11 +358,8 @@ function downloadExcel(){
     ['추출일',new Date().toISOString().slice(0,10)]];
   XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(summary), '요약');
 
-  if($('#payTable')){
-    const aoa=[];
-    $('#payTable').querySelectorAll('tr').forEach(tr=>{
-      aoa.push([...tr.querySelectorAll('th,td')].map((td,i)=> i===0?td.textContent.trim():num(td.textContent)));
-    });
+  if(window.__payRows && $('#payTable')){
+    const aoa=[PAY_HEAD, ...window.__payRows.map(r=>[r[0],r[1],Math.round(r[2]),r[3],Math.round(r[4]),Math.round(r[5])])];
     XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(aoa), '결제방법별');
   }
   if(catRows.length){
