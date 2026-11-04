@@ -668,7 +668,7 @@ function renderAll(){
   let h='';
   /* ===== A. 경영 요약 ===== */
   h+=`<div class="rpt-head"><h2>베스트꽃자재연구소 월간 매출 보고서</h2><p>보고 기간: ${monthLabel(m)}</p>${missing.length?`<div class="miss">자료 상태: 미완료 ${missing.length}건 (${missing.join(', ')})</div>`:'<div class="miss">자료 상태: 모두 확인됨</div>'}</div>`;
-  h+=`<div class="kpis">${kpi({label:'사이트 총 거래액', val:sales, state: sales==null?'na':'', prev:H(prevM).sales, prevY:H(prevY).sales, note:'주문번호 기준 실결제'})}
+  h+=`<div class="kpis">${kpi({label:'사이트 총 거래액', val:sales, state: sales==null?'na':'', prev:H(prevM).sales, prevY:H(prevY).sales, note:'위사 실결제 금액 합계 (예치금·할인 차감 후)'})}
     ${kpi({label:'부자재몰 영업이익', val:mallProfit, state: mallProfit==null?'na':'', prev:H(prevM).mall, prevY:H(prevY).mall, note: mallProfit!=null?`영업이익률 <b>${pct(mallRate)}</b> · PG 수수료 추정치 반영`:''})}
     ${kpi({label:'제일리본 영업이익', val:rb.profit, state:ribbonState, prev:H(prevM).ribbon, prevY:H(prevY).ribbon, note:ribbonNote})}</div>`;
   // 한 줄 해석 (데이터로 자동 생성)
@@ -714,8 +714,9 @@ function renderAll(){
 
   const pr=v=>v==null?NA:won(v);
   const costItems=[['홍보문자·팩스',promo.total],['PG 수수료 (추정)',pg],['WISA 이용료',wf.ready?wf.total:null],['영업이익',mallProfit]];
+  const COSTCOLOR={'홍보문자·팩스':'#6F87AB','PG 수수료 (추정)':'#A3B3CB','WISA 이용료':'#D5DDE8','영업이익':'#223B65'}; // 비용은 밝기 차이, 이익은 네이비
   h+=`<section class="keep"><h2>입점사 수수료 수익 배분</h2><p class="desc">수수료 수익 = 비용 + 영업이익${mallRate!=null?` · 영업이익률 <b style="color:var(--navy)">${pct(mallRate)}</b>`:''}</p>
-    <div class="grid2"><div>${tbl('costTable','수익배분',['항목','금액','비중'], costItems.map(([k,v])=>[k,pr(v),v!=null&&settleFee?pct(v/settleFee):'']), ['입점사 수수료 수익', pr(settleFee), settleFee?'100%':''],[null,'num','num'])}</div>
+    <div class="grid2"><div>${tbl('costTable','수익배분',['항목','금액','비중'], costItems.map(([k,v])=>[`<i style="display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:6px;background:${COSTCOLOR[k]}"></i>${k}`,pr(v),v!=null&&settleFee?pct(v/settleFee):'']), ['입점사 수수료 수익', pr(settleFee), settleFee?'100%':''],[null,'num','num'])}</div>
     <div><div class="chartbox" style="height:170px"><canvas id="costChart" role="img" aria-label="입점사 수수료 수익 배분 도넛 차트"></canvas></div></div></div></section>`;
   h+=`<section class="keep"><h2>부자재몰 운영 손익</h2><p class="desc">단위: 원 · 자사상품(제일리본) 제외</p>
     ${tbl('mallTable','부자재몰손익',['항목','금액','비고'],[
@@ -797,7 +798,7 @@ function renderAll(){
       scales:{y:{ticks:{callback:v=>(v/10000).toLocaleString()+'만'}},x:{grid:{display:false}}}}}));
   const ci=costItems.filter(([,v])=>v!=null&&v>0);
   if(ci.length) charts.push(new Chart($('#costChart'),{type:'doughnut',data:{labels:ci.map(x=>x[0]),datasets:[{data:ci.map(x=>Math.round(x[1])),
-      backgroundColor:ci.map(x=>x[0]==='영업이익'?css('--color-primary'):'#B8C3D3'),borderColor:'#fff',borderWidth:2}]},
+      backgroundColor:ci.map(x=>COSTCOLOR[x[0]]),borderColor:'#fff',borderWidth:2}]},
     options:{...animOff,cutout:'58%',plugins:{legend:{position:'right',labels:{boxWidth:12}},tooltip:{callbacks:{label:c=>c.label+': '+won(c.raw)+'원'}}}}}));
   if(catRows.length){
     $('#catLegend').innerHTML=catRows.map((r,i)=>`<span><i style="background:${catColor(r[0],i)}"></i>${esc(r[0])} ${pct(r[1].amt/catTot)}</span>`).join('');
