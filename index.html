@@ -464,7 +464,34 @@ function computeWisa(){
     if(!orderRows.length) totalReal=allocTotal;
   }
   if(unmatched>0) warns.push('주문상품 시트에만 있는 주문 '+won(unmatched)+'원은 보정 없이 합산했어요.');
-  return {totalReal, orderCount, depositTotal, payAgg, catAgg, vendAgg, prodByCat, totalQty, warns, monthHit, monthAll};
+  return {totalReal, orderCount, depositTotal, payAgg, catAgg, vendAgg, prodByCat, totalQty, warns, monthHit, monthAll, issues: checkOrders(orderRows, productRows)};
+}
+
+/* 위사 주문 점검: 두 파일을 주문별로 맞춰 보고, 설명되지 않는 금액을 찾아 알려줌 (계산은 바꾸지 않음)
+   위사 답변 기준: 주문번호 실결제 = 상품 실결제 합계 + 배송비 − 예치금 − 적립금 */
+function exactKey(obj, name){ return Object.keys(obj).find(k=>norm(k)===norm(name)) || null; }
+function checkOrders(orderRows, productRows){
+  const out=[]; if(!orderRows.length) return out;
+  const o=orderRows[0];
+  const k={no:exactKey(o,'주문번호'), real:exactKey(o,'실결제금액'), ship:exactKey(o,'배송비'), dep:exactKey(o,'사용예치금'), pt:exactKey(o,'사용적립금'),
+    st:exactKey(o,'주문상태'), paid:exactKey(o,'입금일시'), pay:exactKey(o,'결제방법')};
+  if(!k.no||!k.real) return out;
+  const lineSum={}, lineCnt={};
+  if(productRows.length){ const p=productRows[0], pn=exactKey(p,'주문번호'), pr=exactKey(p,'실결제금액');
+    if(pn&&pr) productRows.forEach(r=>{ lineSum[r[pn]]=(lineSum[r[pn]]||0)+num(r[pr]); lineCnt[r[pn]]=(lineCnt[r[pn]]||0)+1; }); }
+  orderRows.forEach(r=>{
+    const real=num(r[k.real]), st=k.st?String(r[k.st]||''):'', paid=k.paid?String(r[k.paid]||'').trim():'x';
+    if(/취소|환불/.test(st) && !paid && real>0){
+      out.push({no:r[k.no], kind:'미입금 취소', amt:real, msg:`${st} · 입금일시 없음 · 결제방법 ${k.pay?r[k.pay]:''} · 그런데 실결제 ${won(real)}원이 남아 있음. 위사 확인 결과 '동명이인입금 주문 취소 시 실결제가 남는 오류'일 수 있어요 → 위사에 수정 요청 후 파일을 다시 내려받아 주세요`});
+      return;
+    }
+    if(productRows.length && (r[k.no] in lineSum)){
+      const expect=lineSum[r[k.no]] + (k.ship?num(r[k.ship]):0) - (k.dep?num(r[k.dep]):0) - (k.pt?num(r[k.pt]):0);
+      const d=real-expect;
+      if(Math.abs(d)>Math.max(1,lineCnt[r[k.no]]||1)) out.push({no:r[k.no], kind:'금액 불일치', amt:d, msg:`주문번호 실결제 ${won(real)}원 ≠ 상품 합계 ${won(lineSum[r[k.no]])} + 배송비 − 예치금·적립금 = ${won(expect)}원 (차이 ${won(d)}원)`});
+    }
+  });
+  return out;
 }
 
 function computePay(payAgg){
@@ -562,6 +589,16 @@ function buildChecks(ctx){
   if(!F.wisaOrder) add('no','위사 주문 (주문번호 기준)','총거래액·결제방법(PG 수수료)에 필요해요.');
   else if(W.monthAll && W.monthHit/W.monthAll<0.95) add('warn','위사 주문 (주문번호 기준)',`주문일이 ${MM}월인 주문이 <b>${W.monthHit}/${W.monthAll}건</b>뿐이에요. 다른 달 파일이 아닌지 확인해 주세요.`);
   else add('ok','위사 주문 (주문번호 기준)', `${F.wisaOrder.length.toLocaleString()}건` + (W.monthAll?` · 모두 ${MM}월 주문`:''));
+  if(F.wisaOrder){
+    const iss=(ctx.W.issues||[]);
+    if(!iss.length) add('ok','위사 주문 점검', F.wisaProduct?'두 파일 금액이 모든 주문에서 맞아요 (배송비·예치금 차이 제외).':'미입금 취소 주문 없음');
+    else{
+      const sum=iss.reduce((a,x)=>a+x.amt,0);
+      add('warn','위사 주문 점검', `확인이 필요한 주문 <b>${iss.length}건</b> (합계 ${won(sum)}원). 사이트 총 거래액은 위사 파일 그대로 계산했어요. 위사 관리자에서 확인해 주세요.`+
+        '<ul style="margin:6px 0 0;padding-left:18px">'+iss.map(x=>`<li><b>${esc(x.no)}</b> [${x.kind}] ${esc(x.msg)}</li>`).join('')+'</ul>'+
+        (iss.some(x=>x.kind==='미입금 취소')?`<div style="margin-top:4px">미입금 취소 금액을 빼면 사이트 총 거래액은 <b>${won(ctx.W.totalReal-iss.filter(x=>x.kind==='미입금 취소').reduce((a,x)=>a+x.amt,0))}원</b>이에요.</div>`:''));
+    }
+  }
   add(F.wisaProduct?'ok':'no','위사 주문 (주문상품 기준)', F.wisaProduct? `${F.wisaProduct.length.toLocaleString()}줄 · 대분류·입점사 통계` : '대분류·입점사·세부상품 통계에 필요해요.');
   // 뿌리오
   const pp=ctx.pp;
