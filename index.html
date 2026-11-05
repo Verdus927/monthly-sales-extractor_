@@ -476,19 +476,19 @@ function checkOrders(orderRows, productRows){
   const k={no:exactKey(o,'주문번호'), real:exactKey(o,'실결제금액'), ship:exactKey(o,'배송비'), dep:exactKey(o,'사용예치금'), pt:exactKey(o,'사용적립금'),
     st:exactKey(o,'주문상태'), paid:exactKey(o,'입금일시'), pay:exactKey(o,'결제방법')};
   if(!k.no||!k.real) return out;
-  const lineSum={};
+  const lineSum={}, lineCnt={};
   if(productRows.length){ const p=productRows[0], pn=exactKey(p,'주문번호'), pr=exactKey(p,'실결제금액');
-    if(pn&&pr) productRows.forEach(r=>{ lineSum[r[pn]]=(lineSum[r[pn]]||0)+num(r[pr]); }); }
+    if(pn&&pr) productRows.forEach(r=>{ lineSum[r[pn]]=(lineSum[r[pn]]||0)+num(r[pr]); lineCnt[r[pn]]=(lineCnt[r[pn]]||0)+1; }); }
   orderRows.forEach(r=>{
     const real=num(r[k.real]), st=k.st?String(r[k.st]||''):'', paid=k.paid?String(r[k.paid]||'').trim():'x';
     if(/취소|환불/.test(st) && !paid && real>0){
-      out.push({no:r[k.no], kind:'미입금 취소', amt:real, msg:`${st} · 입금일시 없음 · 결제방법 ${k.pay?r[k.pay]:''} · 그런데 실결제 ${won(real)}원이 남아 있음`});
+      out.push({no:r[k.no], kind:'미입금 취소', amt:real, msg:`${st} · 입금일시 없음 · 결제방법 ${k.pay?r[k.pay]:''} · 그런데 실결제 ${won(real)}원이 남아 있음. 위사 확인 결과 '동명이인입금 주문 취소 시 실결제가 남는 오류'일 수 있어요 → 위사에 수정 요청 후 파일을 다시 내려받아 주세요`});
       return;
     }
     if(productRows.length && (r[k.no] in lineSum)){
       const expect=lineSum[r[k.no]] + (k.ship?num(r[k.ship]):0) - (k.dep?num(r[k.dep]):0) - (k.pt?num(r[k.pt]):0);
       const d=real-expect;
-      if(Math.abs(d)>1) out.push({no:r[k.no], kind:'금액 불일치', amt:d, msg:`주문번호 실결제 ${won(real)}원 ≠ 상품 합계 ${won(lineSum[r[k.no]])} + 배송비 − 예치금·적립금 = ${won(expect)}원 (차이 ${won(d)}원)`});
+      if(Math.abs(d)>Math.max(1,lineCnt[r[k.no]]||1)) out.push({no:r[k.no], kind:'금액 불일치', amt:d, msg:`주문번호 실결제 ${won(real)}원 ≠ 상품 합계 ${won(lineSum[r[k.no]])} + 배송비 − 예치금·적립금 = ${won(expect)}원 (차이 ${won(d)}원)`});
     }
   });
   return out;
