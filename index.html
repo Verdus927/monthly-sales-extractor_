@@ -383,17 +383,17 @@ function parseRibbon(aoa,h){
 }
 function parseSettle(aoa,h,sheet,fname){
   const c={name:h.col('업체명'), fee:h.col('입점수수료'), pay:h.col('정산금액'), note:h.col('비고')};
-  const rows=[];
+  const rows=[]; let fileTotal=null;
   for(const r of aoa.slice(h.idx+1)){
     const nm=r[c.name]==null?'':String(r[c.name]).trim();
-    if((r||[]).slice(0,4).some(x=>norm(x)==='합계')) break;
+    if((r||[]).slice(0,4).some(x=>norm(x)==='합계')){ if(r[c.fee]!=null&&r[c.fee]!=='') fileTotal=num(r[c.fee]); break; }
     if(!nm) continue;
     rows.push({name:nm, fee:num(r[c.fee]), pay:c.pay>=0?num(r[c.pay]):0, note:c.note>=0&&r[c.note]!=null?String(r[c.note]).replace(/\s+/g,' ').trim():''});
   }
   // 정산 월: 파일명 → 시트 위쪽 제목 순서로 찾기 (예: '26년 10월', '10월 정산')
   let pm=periodFromText(fname);
   if(!pm) for(const r of aoa.slice(0,h.idx)){ for(const c of (r||[])){ const x=periodFromText(c); if(x){ pm=x; break; } } if(pm) break; }
-  return {rows, sheet, file:fname, pm};
+  return {rows, sheet, file:fname, pm, fileTotal};
 }
 function periodFromText(t){
   const s=String(t==null?'':t).replace(/\.[^.]+$/,'');
@@ -644,10 +644,42 @@ function buildChecks(ctx){
   else if(F.tpl) add('warn','3PL 거래내역서',`넣은 파일은 <b>${esc(F.tpl.period||'기간 모름')}</b> 청구서예요. ${MM}월 청구서가 필요해요.`+(rb.logiSrc==='manual'?' (직접 입력값 사용 중)':''));
   else if(rb.logiSrc==='manual') add('ok','3PL 거래내역서','직접 입력한 금액 사용 중');
   else add('wait','3PL 거래내역서',`${MM}월 3PL 청구서가 없으면 자사상품 영업이익은 비워 둬요. 받으면 넣어 주세요.`);
+  // 자료 대조 (맞으면 표시 안 함)
+  const bad=reconcile(ctx);
+  if(bad.length) add('warn','자료 대조', '서로 맞아야 하는 값이 달라요. 원본 파일을 확인해 주세요.<ul style="margin:6px 0 0;padding-left:18px">'+bad.map(x=>`<li>${x}</li>`).join('')+'</ul>');
   // 팩스
   const faxOk=$('#faxNone').checked||num($('#faxCount').value)>0;
   add(faxOk?'ok':'no','팩스 (직접 입력)', faxOk? ($('#faxNone').checked?'이번 달 없음':`${num($('#faxRounds').value)}회 · ${num($('#faxCount').value)}건`) : '아래에 횟수·건수를 넣거나 "이번 달 팩스 없음"을 눌러 주세요.');
   return C;
+}
+function reconcile(ctx){
+  const out=[], W=ctx.W, eq=(a,b,tol=1)=>Math.abs(a-b)<=tol;
+  // 1) 대분류 합계 = 입점사 합계 = 사이트 총 거래액
+  if(F.wisaOrder && F.wisaProduct && W.catAgg){
+    const c=Object.values(W.catAgg).reduce((a,v)=>a+v.amt,0), v=Object.values(W.vendAgg).reduce((a,x)=>a+x.amt,0);
+    if(!eq(c,W.totalReal)||!eq(v,W.totalReal)) out.push(`대분류 합계 ${won(c)} · 입점사 합계 ${won(v)} · 사이트 총 거래액 ${won(W.totalReal)}이 서로 달라요.`);
+  }
+  // 2) PG 표 합계 = 사이트 총 거래액
+  if(F.wisaOrder && W.payAgg){ const t=Object.values(W.payAgg).reduce((a,x)=>a+x.amt,0); if(!eq(t,W.totalReal)) out.push(`결제방법별 합계 ${won(t)} ≠ 사이트 총 거래액 ${won(W.totalReal)}`); }
+  // 3) 입점사 정산: 페이지 합계 = 정산 파일의 합계 줄
+  if(F.settle && F.settle.fileTotal!=null && !eq(ctx.settleFee,F.settle.fileTotal)) out.push(`입점사 정산: 줄을 더한 수수료 ${won(ctx.settleFee)} ≠ 파일의 합계 줄 ${won(F.settle.fileTotal)} (빠진 줄이나 합계 수식 범위를 확인해 주세요)`);
+  // 4) 뿌리오: 차감금액이 단가로 나눠 떨어지는지 (단가 변경 감지)
+  if(ctx.pp) ctx.pp.rows.forEach(r=>{ if(r.unit && Math.abs(r.used/r.unit-Math.round(r.used/r.unit))>0.01) out.push(`뿌리오 ${ymdStr(r.d)} '${esc(r.title)}': 차감 ${won(r.used)}원이 ${r.kind} 단가 ${r.unit}원으로 나눠 떨어지지 않아요. 단가가 바뀌었는지 설정 파일을 확인해 주세요.`); });
+  // 5) 위사 메시지: 총합계 = 종류별 합
+  if(ctx.wf.msg){ const g=ctx.wf.msg.groups, t=g.find(x=>x.label==='총합계'), parts=g.filter(x=>x.label!=='총합계');
+    if(t && parts.length){ const sp=parts.reduce((a,x)=>a+x.pOk,0), sc=parts.reduce((a,x)=>a+x.sOk,0);
+      if(!eq(sp,t.pOk,0.5)||!eq(sc,t.sOk,0)) out.push(`위사 메시지: 종류별 합(${sc.toLocaleString()}건 · ${won(sp)}P) ≠ 총합계(${t.sOk.toLocaleString()}건 · ${won(t.pOk)}P)`); } }
+  // 6) 3PL: 항목 합 = 공급가액, 공급가액 + 부가세 = 청구 합계
+  if(F.tpl && F.tpl.items.length){ const it=F.tpl.items, iSup=it.findIndex(x=>norm(x.label).includes('합계')), iVat=it.findIndex(x=>norm(x.label).includes('부가'));
+    if(iSup>0){ const parts=it.slice(0,iSup).reduce((a,x)=>a+x.amt,0), sup=it[iSup].amt;
+      if(!eq(parts,sup)) out.push(`3PL 청구서: 항목 합 ${won(parts)} ≠ 합계(공급가액) ${won(sup)}`);
+      if(iVat>iSup && F.tpl.total!=null && !eq(sup+it[iVat].amt,F.tpl.total)) out.push(`3PL 청구서: 공급가액 ${won(sup)} + 부가세 ${won(it[iVat].amt)} ≠ 청구 합계 ${won(F.tpl.total)}`); } }
+  // 7) 자사상품: 위사 주문 기준 자사 거래액 ↔ 제일리본 발주서 (주문일/발송일 기준 차이 가능)
+  if(F.wisaProduct && F.ribbon && W.vendAgg){
+    const own=Object.entries(W.vendAgg).filter(([k])=>isOwn(k)).reduce((a,[,v])=>a+v.amt,0), rb=ctx.rb.soldAmt;
+    if(!eq(own,rb)) out.push(`자사상품: 위사 주문 기준 ${won(own)}원 ≠ 제일리본 발주서 ${won(rb)}원 (참고: 위사는 주문일, 발주서는 발송일 기준이라 월말 주문은 달라질 수 있어요)`);
+  }
+  return out;
 }
 function renderChecks(C){
   const ic={ok:'✅',warn:'⚠️',no:'⬜',wait:'⏳'};
