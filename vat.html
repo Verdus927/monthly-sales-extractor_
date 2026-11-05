@@ -175,7 +175,14 @@ function parseWb(wb){
   return type;
 }
 function renderChips(){
-  $('#chips').innerHTML=FILES.map(f=>f.type?`<span class="chip">✓ ${f.type} · ${esc(f.name)}</span>`:`<span class="chip bad">✕ 인식 못함 · ${esc(f.name)}</span>`).join('');
+  const notes=[];
+  FILES.forEach(f=>{ const n=norm(f.name), h=n.includes('주문상품')?'주문상품 기준':n.includes('주문번호')?'주문번호 기준':'';
+    if(h && f.type && h!==f.type) notes.push(`'${esc(f.name)}'은 이름은 '${h}'인데 내용은 <b>${f.type}</b> 파일이에요. 내용 기준으로 읽었어요.`); });
+  const types=new Set(FILES.map(f=>f.type));
+  if(FILES.length && !types.has('주문상품 기준')) notes.push('<b>주문상품 기준</b> 파일이 없어요. 자사상품은 주문상품 기준 파일에서 찾아요.');
+  if(FILES.length && !types.has('주문번호 기준')) notes.push('<b>주문번호 기준</b> 파일이 없어요. 예치금·적립금은 주문상품 파일 값으로 계산해요.');
+  $('#chips').innerHTML=FILES.map(f=>f.type?`<span class="chip">✓ ${f.type} · ${esc(f.name)}</span>`:`<span class="chip bad">✕ 인식 못함 · ${esc(f.name)}</span>`).join('')
+    + (notes.length?`<div class="warn" style="width:100%;text-align:left">${notes.map(x=>'⚠ '+x).join('<br>')}</div>`:'');
 }
 
 function compute(){

@@ -417,10 +417,19 @@ function parseTpl(aoa,sheet,fname){
   return {period, periodYM, total, items, sheet, file:fname};
 }
 
+/* 파일 이름이 내용과 다르면 알려줌 (종류는 이름이 아니라 칼럼으로 판단) */
+function nameHint(name){ const n=norm(name); if(n.includes('주문상품')) return 'wisaProduct'; if(n.includes('주문번호')) return 'wisaOrder'; return ''; }
 function renderChips(){
+  const notes=[];
+  FILES.forEach(f=>{ const h=nameHint(f.name);
+    if(h && (f.types.includes('wisaOrder')||f.types.includes('wisaProduct')) && !f.types.includes(h))
+      notes.push(`'${esc(f.name)}'은 이름에 '${h==='wisaProduct'?'주문상품':'주문번호'}'이 있지만 내용은 <b>${TYPE_NAME[f.types.find(t=>t.startsWith('wisa'))]}</b> 파일이에요. 내용 기준으로 읽었어요.`); });
+  ['wisaOrder','wisaProduct'].forEach(t=>{ const fs=FILES.filter(f=>f.types.includes(t));
+    if(fs.length>1) notes.push(`<b>${TYPE_NAME[t]}</b> 파일이 ${fs.length}개 들어왔어요 (${fs.map(f=>esc(f.name)).join(', ')}). 마지막에 넣은 파일만 써요. 두 파일이 같은 종류인지 확인해 주세요.`); });
   $('#chips').innerHTML=FILES.map(f=>f.types.length
     ? f.types.map(t=>`<span class="chip ok">✓ ${TYPE_NAME[t]} · ${esc(f.name)}</span>`).join('')
-    : `<span class="chip bad">✕ 인식 못함 · ${esc(f.name)}</span>`).join('');
+    : `<span class="chip bad">✕ 인식 못함 · ${esc(f.name)}</span>`).join('')
+    + (notes.length?`<div class="warn" style="width:100%;text-align:left">${notes.map(n=>'⚠ '+n).join('<br>')}</div>`:'');
 }
 
 /* ---------------- 계산 ---------------- */
