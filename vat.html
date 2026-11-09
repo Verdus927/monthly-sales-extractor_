@@ -80,7 +80,7 @@
       <label>시작 월 <input type="month" id="from"></label>
       <label>끝 월 <input type="month" id="to"></label>
       <label>자사 입점사명 <input type="text" id="ownName" value="제일무역" style="width:110px"></label>
-      <label>제외할 상품명 키워드 <input type="text" id="exKw" value="근조3단" style="width:160px" title="쉼표로 여러 개"></label>
+      <label>제외할 상품명 키워드 <input type="text" id="exKw" value="근조3단, 축하3단" style="width:160px" title="쉼표로 여러 개"></label>
       <span>강조할 기준</span>
       <span class="seg"><label><input type="radio" name="basis" value="sale" checked>판매가 기준</label><label><input type="radio" name="basis" value="paid">실제 결제 기준</label></span>
     </div>
@@ -281,7 +281,8 @@ function exportXlsx(){
 (function(){
   const d=new Date(); const y=d.getFullYear();
   $('#from').value=y+'-01'; const p=new Date(y,d.getMonth()-1,1); $('#to').value=p.getFullYear()+'-'+pad(p.getMonth()+1);
-  try{ const k=localStorage.getItem('vat.exKw'); if(k!=null) $('#exKw').value=k; }catch(e){}
+  // 예전 기본값('근조3단')만 기억된 경우는 새 기본값으로
+  try{ const k=localStorage.getItem('vat.exKw'); if(k!=null && k.trim()!=='근조3단') $('#exKw').value=k; }catch(e){}
   ['from','to','ownName','exKw'].forEach(id=>$('#'+id).addEventListener('input',()=>{ if(id==='exKw') saveOvr(); render(); }));
   document.querySelectorAll('input[name=basis]').forEach(r=>r.addEventListener('change',render));
 })();
