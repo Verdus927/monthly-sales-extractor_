@@ -141,10 +141,15 @@
     .tblwrap{overflow:visible}
     *{-webkit-print-color-adjust:exact;print-color-adjust:exact}
   }
+  .topnav{display:flex;gap:4px;justify-content:center;background:#16294a;padding:8px 12px}
+  .topnav a{color:#c9d3e6;text-decoration:none;font-size:13px;padding:5px 14px;border-radius:99px}
+  .topnav a:hover{background:rgba(255,255,255,.1);color:#fff}
+  .topnav a.on{background:#fff;color:#223B65;font-weight:700}
 </style>
 <style id="pageStyle"></style>
 </head>
 <body>
+<nav class="topnav noprint"><a href="index.html" class="on">📊 월간 매출 보고서</a><a href="vat.html">🧾 자사상품 매출 집계</a></nav>
 <header>
   <h1>월간 매출 보고서</h1>
   <p>베스트꽃자재연구소 · 자료 파일을 넣으면 표·그래프가 자동으로 만들어지고 PDF로 저장할 수 있어요</p>
@@ -187,7 +192,6 @@
     <button class="primary" onclick="printPDF()">🖨️ PDF로 저장</button>
     <button onclick="downloadSettings()">⚙️ 설정 파일 내려받기 (이번 달 이력 반영)</button>
     <button onclick="downloadExcel()">📥 보고서 표 엑셀로 내려받기</button>
-    <a href="vat.html" style="align-self:center;font-size:13px;margin-left:6px">🧾 자사상품 매출 집계 (부가세 신고용) →</a>
   </div>
   <p class="note noprint">PDF로 저장: 인쇄 창에서 대상을 <b>PDF로 저장</b>으로 고르고, 설정에서 <b>배경 그래픽</b>은 켜고 <b>머리글과 바닥글</b>은 꺼 주세요. (인쇄 날짜와 페이지 주소가 빠지고, 보고서 이름·쪽 번호만 남아요)</p>
 
