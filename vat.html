@@ -81,10 +81,10 @@
       <label>끝 월 <input type="month" id="to"></label>
       <label>자사 입점사명 <input type="text" id="ownName" value="제일무역" style="width:110px"></label>
       <label>제외할 상품명 키워드 <input type="text" id="exKw" value="근조3단, 축하3단" style="width:160px" title="쉼표로 여러 개"></label>
-      <span>강조할 기준</span>
-      <span class="seg"><label><input type="radio" name="basis" value="sale" checked>매출 기준</label><label><input type="radio" name="basis" value="paid">예치금 차감(참고)</label></span>
+      <label>자사상품 이름에 들어가는 글자 <input type="text" id="ownCat" value="리본" style="width:90px" title="쉼표로 여러 개. 이 글자가 없는 자사 줄은 자동으로 빠져요"></label>
     </div>
-    <p class="note" style="margin-top:8px"><b>세무 기준 (확정)</b>: 고객 실결제액 기준 · 쿠폰은 빼고 예치금은 포함 · 위사 주문일 기준 · 적립금 제도 없음 → <b>매출 기준</b>이 신고용이에요. '예치금 차감(참고)'는 비교용으로만 남겨 뒀어요.<br>입점사명이 비어 있거나 위 이름과 같은 줄을 자사상품으로 봐요. 상품명에 제외 키워드(쉼표로 여러 개)가 들어간 줄은 빼고, 아래 <b>상품명 목록</b>에서 하나씩 넣고 뺄 수도 있어요. 기준은 세무 담당자 확인 후 고르세요. 두 기준 모두 항상 계산돼요.</p>
+    <p class="note" style="margin-top:8px"><b>매출 기준 (확정)</b>: 주문 당시 고객 결제액 · 쿠폰은 빼고 예치금은 포함 · 위사 주문일 기준 · 적립금 제도 없음. 위사에서 나중에 취소·환불된 금액은 <b>빼지 않고 메모로만</b> 적어요 (환불은 환불대장으로 따로 정리).<br>
+    자사상품 = 입점사명이 비어 있거나 위 이름과 같은 줄 중, 상품명에 위 글자(기본 '리본')가 들어간 상품. 근조3단·축하3단·카네이션·동양란·꽃바구니처럼 '리본'이 없는 상품은 자동으로 빠져요 (위사 대분류는 잘못 들어간 경우가 있어서 쓰지 않아요). 입금 안 된 취소 주문도 빠져요.</p>
   </div>
 
   <div class="drop noprint" id="drop">
@@ -95,14 +95,14 @@
   </div>
 
   <section class="noprint">
-    <h2>두 기준의 차이</h2>
-    <div class="tblwrap"><table class="detail"><thead><tr><th class="l">항목</th><th class="l">매출 기준 (주문상품 실결제)</th><th class="l">예치금 차감(참고)</th></tr></thead><tbody>
-      <tr><td class="l">쿠폰·할인</td><td class="l">빠짐</td><td class="l">빠짐</td></tr>
-      <tr><td class="l">예치금·적립금 사용분</td><td class="l">빼지 않음</td><td class="l">주문의 예치금·적립금 × 자사 비율만큼 뺌</td></tr>
-      <tr><td class="l">배송비</td><td class="l">미포함</td><td class="l">미포함 (자사상품은 무료배송, 배송비는 상품금액에 포함)</td></tr>
-      <tr><td class="l">취소·부분취소</td><td class="l">빠짐 (위사가 줄마다 반영)</td><td class="l">빠짐</td></tr>
+    <h2>매출 계산 방법</h2>
+    <div class="tblwrap"><table class="detail"><thead><tr><th class="l">경우</th><th class="l">매출로 잡는 금액</th></tr></thead><tbody>
+      <tr><td class="l">일반 주문</td><td class="l">위사 주문상품 기준 실결제 (쿠폰 차감, 예치금 포함)</td></tr>
+      <tr><td class="l">위사에서 부분취소·환불·반품된 주문</td><td class="l">취소 전 결제액 (실결제 + 부분취소금액). 취소된 금액은 '위사 취소·환불' 칸에 메모</td></tr>
+      <tr><td class="l">교환한 주문 (같은 주문에 줄이 새로 생김)</td><td class="l">원래 줄 하나만 판매로 셈. 줄어든 금액은 메모</td></tr>
+      <tr><td class="l">다음 주문에서 금액을 깎아 준 경우</td><td class="l">위사에 실제 결제된 금액 그대로 (두 번 빼지 않음)</td></tr>
+      <tr><td class="l">입금 안 된 취소 주문</td><td class="l">판매 아님 → 제외</td></tr>
     </tbody></table></div>
-    <p class="note" style="margin-top:8px">자사 비율 = 자사상품 실결제 ÷ 그 주문 전체 상품 실결제. 다른 입점사 상품과 섞인 주문에서만 1보다 작아요.</p>
   </section>
 
   <div id="out"></div>
@@ -160,21 +160,25 @@ function parseWb(wb){
     const isLine = Object.keys(s).some(k=>norm(k).includes('대분류')) || !!key(s,'상품코드');
     if(isLine){
       const k={no:kNo, real:kReal, lid:key(s,'주문상품번호'), name:key(s,'주문상품'), qty:key(s,'주문수량'), unit:key(s,'상품단가'), tot:key(s,'상품총액'),
-        ven:key(s,'입점사명'), st:key(s,'주문상태'), pay:key(s,'결제방법'), dt:key(s,'주문일시'), ym:key(s,'주문일시(년월)'), cancel:key(s,'부분취소금액'),
+        ven:key(s,'입점사명'), st:key(s,'주문상태'), pay:key(s,'결제방법'), today:key(s,'오늘날짜'), code:key(s,'상품코드'), cdt:key(s,'취소일시'), paidL:key(s,'입금일시'), dt:key(s,'주문일시'), ym:key(s,'주문일시(년월)'), cancel:key(s,'부분취소금액'),
         dep:key(s,'사용예치금'), pt:key(s,'사용적립금'), cat:Object.keys(s).find(x=>norm(x).includes('대분류'))};
       const disc=DISC.map(d=>key(s,d)).filter(Boolean);
       rows.forEach((r,i)=>{ if(!r[k.no]) return;
         const id = k.lid && r[k.lid]!=null ? 'L'+r[k.lid] : r[k.no]+'#'+i+'#'+(r[k.name]||'');
-        LINES.set(id,{no:String(r[k.no]), name:String(r[k.name]||''), qty:num(r[k.qty]), unit:num(r[k.unit]), tot:num(r[k.tot]), real:num(r[k.real]),
+        // 같은 줄이 여러 파일에 있으면 더 늦게 내려받은 파일(오늘날짜)을 씀
+        const dl=k.today?String(r[k.today]||''):''; const prev=LINES.get(id); if(prev && prev.dl>dl) return;
+        LINES.set(id,{dl, no:String(r[k.no]), name:String(r[k.name]||''), qty:num(r[k.qty]), unit:num(r[k.unit]), tot:num(r[k.tot]), real:num(r[k.real]),
           disc:disc.reduce((a,d)=>a+num(r[d]),0), cancel:num(r[k.cancel]), ven:k.ven?String(r[k.ven]==null?'':r[k.ven]).trim():'',
           st:String(r[k.st]||''), ym:ymOf(r[k.dt], k.ym?r[k.ym]:null), date:dateOf(r[k.dt]), cat:k.cat?String(r[k.cat]||''):'',
-          depLine:num(r[k.dep])+num(r[k.pt]), pay:k.pay?String(r[k.pay]||'').trim():''});
+          depLine:num(r[k.dep])+num(r[k.pt]), pay:k.pay?String(r[k.pay]||'').trim():'', code:k.code?String(r[k.code]||'').trim():'', lnum:k.lid?num(r[k.lid]):i,
+          cdate:k.cdt?dateOf(r[k.cdt]):'', paid:k.paidL?String(r[k.paidL]||'').trim():''});
       });
       type='주문상품 기준';
     } else {
-      const k={no:kNo, real:kReal, dep:key(s,'사용예치금'), pt:key(s,'사용적립금'), ship:key(s,'배송비'), st:key(s,'주문상태'), paid:key(s,'입금일시'), pay:key(s,'결제방법'), dt:key(s,'주문일시'), ym:key(s,'주문일시(년월)')};
+      const k={today:key(s,'오늘날짜'), no:kNo, real:kReal, dep:key(s,'사용예치금'), pt:key(s,'사용적립금'), ship:key(s,'배송비'), st:key(s,'주문상태'), paid:key(s,'입금일시'), pay:key(s,'결제방법'), dt:key(s,'주문일시'), ym:key(s,'주문일시(년월)')};
       rows.forEach(r=>{ if(!r[k.no]) return;
-        ORD.set(String(r[k.no]),{real:num(r[k.real]), dep:num(r[k.dep]), pt:num(r[k.pt]), ship:num(r[k.ship]), st:String(r[k.st]||''),
+        const dl=k.today?String(r[k.today]||''):''; const prev=ORD.get(String(r[k.no])); if(prev && prev.dl>dl) return;
+        ORD.set(String(r[k.no]),{dl, real:num(r[k.real]), dep:num(r[k.dep]), pt:num(r[k.pt]), ship:num(r[k.ship]), st:String(r[k.st]||''),
           paid:k.paid?String(r[k.paid]||'').trim():'x', pay:k.pay?String(r[k.pay]||''):'', ym:ymOf(r[k.dt], k.ym?r[k.ym]:null)}); });
       type='주문번호 기준';
     }
@@ -194,28 +198,62 @@ function renderChips(){
 
 function compute(){
   const from=$('#from').value, to=$('#to').value, own=$('#ownName').value.trim();
+  const cats=$('#ownCat').value.split(',').map(x=>x.trim()).filter(Boolean);
   const isOwn=v=>!v || (own && v===own);
-  // 주문별 전체 상품 실결제 (자사 비율 계산용)
+  // 주문별 전체 상품 실결제 (예치금 자사 몫 계산용)
   const orderLineSum={}, orderHasOther={};
-  for(const l of LINES.values()){ orderLineSum[l.no]=(orderLineSum[l.no]||0)+l.real; if(!isOwn(l.ven)) orderHasOther[l.no]=true; }
-  const rows=[];
+  for(const l of LINES.values()){ if(/교환완료/.test(l.st)) continue; orderLineSum[l.no]=(orderLineSum[l.no]||0)+l.real; if(!isOwn(l.ven)) orderHasOther[l.no]=true; }
+  // 자사 줄 묶기: 교환이 있는 주문은 주문 전체를 한 묶음으로 (교환하면 상품명이 바뀐 새 줄이 생길 수 있음),
+  // 교환이 없으면 주문+상품코드별로
+  const byOrder=new Map();
   for(const l of LINES.values()){
     if(!isOwn(l.ven)) continue;
     if(from && l.ym<from) continue; if(to && l.ym>to) continue;
-    const o=ORD.get(l.no);
-    const ratio = orderLineSum[l.no]>0 ? l.real/orderLineSum[l.no] : 0;
-    const depAll = o ? (o.dep+o.pt) : l.depLine;
+    if(!byOrder.has(l.no)) byOrder.set(l.no,[]); byOrder.get(l.no).push(l);
+  }
+  const G=new Map();
+  for(const [no,ls] of byOrder){
+    if(ls.some(l=>/교환완료/.test(l.st))) G.set(no+'|교환',ls);
+    else ls.forEach(l=>{ const k=no+'|'+(l.code||l.name); if(!G.has(k)) G.set(k,[]); G.get(k).push(l); });
+  }
+  const rows=[];
+  for(const ls of G.values()){
+    ls.sort((a,b)=>a.lnum-b.lnum);
+    const exch=ls.filter(l=>/교환완료/.test(l.st)), act=ls.filter(l=>!/교환완료/.test(l.st));
+    // 원래 줄 = 주문할 때 함께 만들어진 줄 (주문상품번호가 연달아 붙음). 교환으로 나중에 생긴 줄은 번호가 크게 떨어져 있음
+    let orig=ls;
+    if(exch.length){ orig=[ls[0]]; for(let i=1;i<ls.length && ls[i].lnum-ls[i-1].lnum<=2;i++) orig.push(ls[i]); }
+    const first=orig[0], cur=act[act.length-1]||first;
+    // 판매액 = 주문 당시 결제액 (쿠폰 차감, 예치금 포함). 위사에서 나중에 취소·환불·교환으로 줄어든 금액은 빼지 않고 따로 적음
+    const sale = orig.reduce((a,l)=>a+l.real+l.cancel,0);
+    const nowReal = act.reduce((a,l)=>a+l.real,0);
+    const wref = Math.max(0, sale-nowReal);
+    const qty = orig.reduce((a,l)=>a+l.qty,0);
+    const rdate = wref>0 ? ls.map(l=>l.cdate).filter(Boolean).sort().pop()||'' : '';
+    const o=ORD.get(first.no);
+    const paidAny = ls.some(l=>l.paid) || (o && o.paid && o.paid!=='x');
+    const ratio = orderLineSum[first.no]>0 ? nowReal/orderLineSum[first.no] : 0;
+    const depAll = o ? (o.dep+o.pt) : first.depLine;
     const depShare = depAll*ratio;
     const tags=[];
     if(!o) tags.push('주문번호 파일 없음');
-    if(orderHasOther[l.no]) tags.push('다른 입점사와 섞인 주문');
-    if(depAll) tags.push('예치금·적립금 사용');
-    if(l.disc) tags.push('쿠폰·할인');
-    if(l.cancel || /취소|환불|교환|반품/.test(l.st)) tags.push('취소·환불');
-    if(o && /취소|환불/.test(o.st) && !o.paid && o.real>0) tags.push('미입금 취소 오류 의심');
-    const hit=kwHit(l.name), inc = (l.name in OVR) ? OVR[l.name] : !hit;
-    const pm=(o&&o.pay)||l.pay||''; const method=/카드/.test(pm)?'신용카드':/무통장/.test(pm)?'무통장 입금':(pm||'기타');
-    rows.push({...l, method, ratio, depShare, sale:l.real, paid:l.real-depShare, tags, ex:!inc, why: (l.name in OVR) ? (inc?'직접 포함':'직접 제외') : (hit?`키워드 '${hit}'`:'')});
+    if(orderHasOther[first.no]) tags.push('다른 입점사와 섞인 주문');
+    if(depAll) tags.push('예치금 사용');
+    if(first.disc) tags.push('쿠폰');
+    if(exch.length) tags.push(`교환 ${exch.length}회`);
+    if(wref>0) tags.push('위사 취소·환불');
+    if(o && /취소|환불/.test(o.st) && (!o.paid) && o.real>0) tags.push('미입금 취소 오류 의심');
+    const name=first.name + (exch.length && cur.name!==first.name ? ` → 교환 후: ${cur.name}` : '');
+    const pm=(o&&o.pay)||first.pay||''; const method=/카드/.test(pm)?'신용카드':/무통장/.test(pm)?'무통장 입금':(pm||'기타');
+    // 포함/제외: 직접 고른 값 > 미입금 > 키워드 > 대분류
+    const hit=kwHit(first.name), catOut = cats.length && !cats.some(c=>first.name.includes(c));
+    let ex=false, why='';
+    if(!paidAny){ ex=true; why='미입금 취소 (판매 아님)'; }
+    else if(name in OVR){ ex=!OVR[name]; why=OVR[name]?'직접 포함':'직접 제외'; }
+    else if(hit){ ex=true; why=`키워드 '${hit}'`; }
+    else if(catOut){ ex=true; why=`상품명에 '${cats.join("/")}' 없음 (대분류 ${first.cat||'-'})`; }
+    rows.push({no:first.no, date:first.date, ym:first.ym, name, qty, sale, wref, rdate, disc:first.disc, method, st:cur.st, cat:first.cat,
+      ratio, depShare, tags, ex, why, unpaid:!paidAny});
   }
   rows.sort((a,b)=>a.date<b.date?-1:a.date>b.date?1:a.no<b.no?-1:1);
   return rows;
@@ -223,67 +261,71 @@ function compute(){
 
 function render(){
   if(!LINES.size){ $('#out').innerHTML=''; return; }
-  const all=compute(), rows=all.filter(r=>!r.ex), exRows=all.filter(r=>r.ex), basis=document.querySelector('input[name=basis]:checked').value;
-  const pk=b=>b===basis?' class="pick"':'';
+  const all=compute(), rows=all.filter(r=>!r.ex), exRows=all.filter(r=>r.ex);
   const sum=(arr,f)=>arr.reduce((a,r)=>a+f(r),0);
-  const T={sale:sum(rows,r=>r.sale), paid:sum(rows,r=>r.paid), dep:sum(rows,r=>r.depShare), disc:sum(rows,r=>r.disc), tot:sum(rows,r=>r.tot), cancel:sum(rows,r=>r.cancel), qty:sum(rows,r=>r.qty)};
-  const pickTotal = basis==='sale'?T.sale:T.paid;
+  const T={sale:sum(rows,r=>r.sale), dep:sum(rows,r=>r.depShare), wref:sum(rows,r=>r.wref), qty:sum(rows,r=>r.qty)};
+  const nOrd=new Set(rows.map(r=>r.no)).size;
   const noOrd=[...new Set(rows.filter(r=>r.tags.includes('주문번호 파일 없음')).map(r=>r.no))];
+  const months=[]; { const f=$('#from').value,t=$('#to').value; if(f&&t){ let [y,m]=f.split('-').map(Number); while(`${y}-${pad(m)}`<=t){ months.push(`${y}-${pad(m)}`); m++; if(m>12){m=1;y++;} } } }
+  const have=new Set([...LINES.values()].map(l=>l.ym)), missing=months.filter(k=>!have.has(k));
   let h='';
-  h+=`<section><h2>자사상품 매출 합계 (${$('#from').value||'처음'} ~ ${$('#to').value||'끝'})</h2><p class="desc">자사 줄 ${rows.length}개 · 주문 ${new Set(rows.map(r=>r.no)).size}건 · 수량 ${T.qty.toLocaleString()}${exRows.length?` · <b>제외 ${exRows.length}줄 (판매가 ${won(exRows.reduce((a,r)=>a+r.sale,0))}원)</b>`:''}</p>
+  h+=`<section><h2>자사상품 매출 (${$('#from').value||'처음'} ~ ${$('#to').value||'끝'})</h2><p class="desc">주문 ${nOrd}건 · 수량 ${T.qty.toLocaleString()}${exRows.length?` · 제외 ${exRows.length}줄 (아래 '제외된 줄')`:''}</p>
     <div class="kpis">
-      <div class="kpi${basis==='sale'?' pick':''}"><div class="lbl">매출 기준 합계</div><div class="val">${won(T.sale)}원</div><div class="sub">주문상품 실결제 합계 (쿠폰·취소 반영, 예치금 미차감)</div></div>
-      <div class="kpi${basis==='paid'?' pick':''}"><div class="lbl">예치금 차감(참고) 합계</div><div class="val">${won(T.paid)}원</div><div class="sub">매출 기준 − 예치금·적립금 자사 몫 ${won(T.dep)}원</div></div>
-      <div class="kpi"><div class="lbl">참고: 공급가액 / 부가세 (선택 기준 ÷ 1.1)</div><div class="val" style="font-size:18px">${won(pickTotal/1.1)} / ${won(pickTotal-pickTotal/1.1)}</div><div class="sub">과세 상품 기준 단순 계산 · 신고 금액은 세무 담당자 확인</div></div>
+      <div class="kpi pick"><div class="lbl">매출 합계 (신고용)</div><div class="val">${won(T.sale)}원</div><div class="sub">주문 당시 고객 결제액 · 쿠폰 차감 · 예치금 포함 · 주문일 기준</div></div>
+      <div class="kpi"><div class="lbl">위사에서 취소·환불된 금액 (메모)</div><div class="val">${won(T.wref)}원</div><div class="sub">매출에서 빼지 않았어요. 환불은 환불대장 기준으로 따로 정리</div></div>
+      <div class="kpi"><div class="lbl">참고: 공급가액 / 부가세 (÷ 1.1)</div><div class="val" style="font-size:18px">${won(T.sale/1.1)} / ${won(T.sale-T.sale/1.1)}</div><div class="sub">과세 상품 기준 단순 계산</div></div>
     </div>
-    ${noOrd.length?`<div class="warn">주문번호 기준 파일이 없는 주문 ${noOrd.length}건은 예치금·적립금을 주문상품 파일 값으로 계산했어요. 같은 기간의 주문번호 기준 파일도 넣어 주세요.</div>`:''}</section>`;
+    ${missing.length?`<div class="warn">이 기간 중 <b>${missing.join(', ')}</b> 주문상품 기준 자료가 없어요. 그 달 매출은 0으로 보여요.</div>`:''}
+    ${noOrd.length?`<div class="warn">주문번호 기준 파일이 없는 주문 ${noOrd.length}건이 있어요. 같은 기간의 주문번호 기준 파일도 넣어 주세요.</div>`:''}</section>`;
   // 월별
-  const byM={}; rows.forEach(r=>{ const m=byM[r.ym]=byM[r.ym]||{orders:new Set(),n:0,qty:0,tot:0,disc:0,cancel:0,sale:0,dep:0,paid:0};
-    m.orders.add(r.no); m.n++; m.qty+=r.qty; m.tot+=r.tot; m.disc+=r.disc; m.cancel+=r.cancel; m.sale+=r.sale; m.dep+=r.depShare; m.paid+=r.paid; });
+  const byM={}; rows.forEach(r=>{ const m=byM[r.ym]=byM[r.ym]||{orders:new Set(),qty:0,sale:0,dep:0,wref:0}; m.orders.add(r.no); m.qty+=r.qty; m.sale+=r.sale; m.dep+=r.depShare; m.wref+=r.wref; });
   const ms=Object.keys(byM).sort();
-  h+=`<section><h2>월별 합계</h2><p class="desc">단위: 원 · 주문일 기준</p>${ms.length?`<div class="tblwrap"><table id="tMonth" data-sheet="월별"><thead><tr><th class="l">월</th><th>주문 수</th><th>줄 수</th><th>수량</th><th>상품총액</th><th>쿠폰·할인</th><th>취소</th><th${pk('sale')}>매출 기준</th><th>예치금·적립금 몫</th><th${pk('paid')}>예치금 차감(참고)</th></tr></thead><tbody>`+
-    ms.map(k=>{const m=byM[k]; return `<tr><td class="l">${k}</td><td>${m.orders.size}</td><td>${m.n}</td><td>${m.qty.toLocaleString()}</td><td>${won(m.tot)}</td><td>${won(m.disc)}</td><td>${won(m.cancel)}</td><td${pk('sale')}>${won(m.sale)}</td><td>${won(m.dep)}</td><td${pk('paid')}>${won(m.paid)}</td></tr>`;}).join('')+
-    `</tbody><tfoot><tr><td class="l">합계</td><td>${new Set(rows.map(r=>r.no)).size}</td><td>${rows.length}</td><td>${T.qty.toLocaleString()}</td><td>${won(T.tot)}</td><td>${won(T.disc)}</td><td>${won(T.cancel)}</td><td${pk('sale')}>${won(T.sale)}</td><td>${won(T.dep)}</td><td${pk('paid')}>${won(T.paid)}</td></tr></tfoot></table></div>`:'<div class="empty">기간 안에 자사상품 주문이 없어요</div>'}</section>`;
-  // 결제수단별 합계 (매출 기준)
+  h+=`<section><h2>월별 매출 (주문월 기준)</h2><p class="desc">단위: 원</p>${ms.length?`<div class="tblwrap"><table id="tMonth" data-sheet="월별"><thead><tr><th class="l">월</th><th>주문 수</th><th>수량</th><th class="pick">매출</th><th>그중 예치금</th><th>위사 취소·환불 (메모)</th></tr></thead><tbody>`+
+    ms.map(k=>{const m=byM[k]; return `<tr><td class="l">${k}</td><td>${m.orders.size}</td><td>${m.qty.toLocaleString()}</td><td class="pick">${won(m.sale)}</td><td>${won(m.dep)}</td><td>${won(m.wref)}</td></tr>`;}).join('')+
+    `</tbody><tfoot><tr><td class="l">합계</td><td>${nOrd}</td><td>${T.qty.toLocaleString()}</td><td class="pick">${won(T.sale)}</td><td>${won(T.dep)}</td><td>${won(T.wref)}</td></tr></tfoot></table></div>`:'<div class="empty">기간 안에 자사상품 주문이 없어요</div>'}</section>`;
+  // 결제수단별
   const METH=[...new Set(['신용카드','무통장 입금',...rows.map(r=>r.method)])].filter(mm=>rows.some(r=>r.method===mm));
   if(rows.length){
     const cell=(mm,k)=>rows.filter(r=>r.method===mm&&(!k||r.ym===k)).reduce((a,r)=>a+r.sale,0);
     const depOf=mm=>rows.filter(r=>r.method===mm).reduce((a,r)=>a+r.depShare,0);
-    h+=`<section><h2>결제수단별 합계 (매출 기준)</h2><p class="desc">단위: 원 · 결제방법은 위사 주문의 '결제방법' 칸 기준 · 예치금으로 낸 금액도 그 주문의 결제수단에 들어가 있어요 (아래 '그중 예치금' 참고) · 무통장 입금의 현금영수증 발행 여부는 위사에서 확인해 주세요</p>
-      <div class="tblwrap"><table id="tPay" data-sheet="결제수단별"><thead><tr><th class="l">결제수단</th><th>줄 수</th><th class="pick">매출 기준</th><th>그중 예치금</th><th>공급가액 (÷1.1)</th><th>부가세</th></tr></thead><tbody>`+
-      METH.map(mm=>{ const v=cell(mm); return `<tr><td class="l">${esc(mm)}</td><td>${rows.filter(r=>r.method===mm).length}</td><td class="pick">${won(v)}</td><td>${won(depOf(mm))}</td><td>${won(v/1.1)}</td><td>${won(v-v/1.1)}</td></tr>`; }).join('')+
-      `</tbody><tfoot><tr><td class="l">합계</td><td>${rows.length}</td><td class="pick">${won(T.sale)}</td><td>${won(T.dep)}</td><td>${won(T.sale/1.1)}</td><td>${won(T.sale-T.sale/1.1)}</td></tr></tfoot></table></div>
+    h+=`<section><h2>결제수단별 매출</h2><p class="desc">단위: 원 · 위사 주문의 '결제방법' 기준 · 예치금으로 낸 금액도 그 주문의 결제수단에 들어 있어요 ('그중 예치금') · 무통장 입금의 현금영수증 발행 여부는 위사에서 확인</p>
+      <div class="tblwrap"><table id="tPay" data-sheet="결제수단별"><thead><tr><th class="l">결제수단</th><th>주문 수</th><th class="pick">매출</th><th>그중 예치금</th><th>공급가액 (÷1.1)</th><th>부가세</th></tr></thead><tbody>`+
+      METH.map(mm=>{ const v=cell(mm); return `<tr><td class="l">${esc(mm)}</td><td>${new Set(rows.filter(r=>r.method===mm).map(r=>r.no)).size}</td><td class="pick">${won(v)}</td><td>${won(depOf(mm))}</td><td>${won(v/1.1)}</td><td>${won(v-v/1.1)}</td></tr>`; }).join('')+
+      `</tbody><tfoot><tr><td class="l">합계</td><td>${nOrd}</td><td class="pick">${won(T.sale)}</td><td>${won(T.dep)}</td><td>${won(T.sale/1.1)}</td><td>${won(T.sale-T.sale/1.1)}</td></tr></tfoot></table></div>
       <h3 style="margin:14px 0 6px;font-size:13.5px">월별 × 결제수단</h3>
       <div class="tblwrap"><table id="tPayM" data-sheet="월별결제수단" class="detail"><thead><tr><th class="l">월</th>${METH.map(mm=>`<th>${esc(mm)}</th>`).join('')}<th>합계</th></tr></thead><tbody>`+
       ms.map(k=>`<tr><td class="l">${k}</td>${METH.map(mm=>`<td>${won(cell(mm,k))}</td>`).join('')}<td><b>${won(byM[k].sale)}</b></td></tr>`).join('')+
-      `</tbody><tfoot><tr><td class="l">합계</td>${METH.map(mm=>`<td>${won(cell(mm))}</td>`).join('')}<td>${won(T.sale)}</td></tr></tfoot></table></div>
-      <p class="note" style="margin-top:6px">공급가액·부가세는 모든 자사상품이 과세 상품이라고 보고 단순 계산한 값이에요.</p></section>`;
+      `</tbody><tfoot><tr><td class="l">합계</td>${METH.map(mm=>`<td>${won(cell(mm))}</td>`).join('')}<td>${won(T.sale)}</td></tr></tfoot></table></div></section>`;
   }
-  // 상품명 목록: 자사로 잡힌 모든 상품명을 보여주고 포함/제외를 고름
-  const nm={}; all.forEach(r=>{ const x=nm[r.name]=nm[r.name]||{n:0,sale:0,ex:r.ex,why:r.why}; x.n++; x.sale+=r.sale; });
-  window.__names=Object.keys(nm).sort((a,b)=>(nm[a].ex-nm[b].ex)||nm[b].sale-nm[a].sale);
-  h+=`<section class="noprint"><h2>상품명 목록 (포함 / 제외 고르기)</h2><p class="desc">입점사가 자사로 잡힌 상품명이에요. 체크를 풀면 집계에서 빠져요. 고른 값은 이 브라우저에 기억돼요.</p>
-    <div class="tblwrap"><table class="detail"><thead><tr><th class="nw">포함</th><th class="l">상품명</th><th>줄 수</th><th>판매가 합계</th><th class="l">이유</th></tr></thead><tbody>`+
-    window.__names.map((n,i)=>`<tr${nm[n].ex?' style="color:var(--color-text-muted)"':''}><td class="nw"><input type="checkbox" ${nm[n].ex?'':'checked'} onchange="toggleName(${i},this.checked)"></td><td class="l name">${esc(n)}</td><td>${nm[n].n}</td><td>${won(nm[n].sale)}</td><td class="l">${esc(nm[n].why)}</td></tr>`).join('')+
-    `</tbody></table></div>${Object.keys(OVR).length?`<div class="btnrow"><button onclick="OVR={};saveOvr();render()">직접 고른 것 모두 되돌리기</button></div>`:''}</section>`;
-  // 상품별 (자사상품이 여러 개가 되면 여기서 나뉨)
-  const byP={}; rows.forEach(r=>{ const p=byP[r.name]=byP[r.name]||{n:0,qty:0,sale:0,paid:0}; p.n++; p.qty+=r.qty; p.sale+=r.sale; p.paid+=r.paid; });
+  // 상품별
+  const byP={}; rows.forEach(r=>{ const p=byP[r.name]=byP[r.name]||{n:0,qty:0,sale:0}; p.n++; p.qty+=r.qty; p.sale+=r.sale; });
   const ps=Object.entries(byP).sort((a,b)=>b[1].sale-a[1].sale);
-  if(ps.length) h+=`<section><h2>상품별 합계</h2><p class="desc">자사상품이 여러 개가 되면 상품마다 나눠서 보여요</p><div class="tblwrap"><table id="tProd" data-sheet="상품별"><thead><tr><th class="l">상품명</th><th>줄 수</th><th>수량</th><th${pk('sale')}>매출 기준</th><th${pk('paid')}>예치금 차감(참고)</th></tr></thead><tbody>`+
-    ps.map(([n,p])=>`<tr><td class="l">${esc(n)}</td><td>${p.n}</td><td>${p.qty.toLocaleString()}</td><td${pk('sale')}>${won(p.sale)}</td><td${pk('paid')}>${won(p.paid)}</td></tr>`).join('')+`</tbody></table></div></section>`;
-  // 확인 필요
-  const flagged=rows.filter(r=>r.tags.length);
-  h+=`<section><h2>확인이 필요한 줄 (${flagged.length})</h2><p class="desc">두 기준 금액이 달라지거나 취소·쿠폰이 섞인 줄이에요. 여기만 위사 관리자에서 확인하면 돼요.</p>
-    ${flagged.length? detailTable('tFlag','확인필요',flagged,pk) : '<div class="empty">없어요. 모든 자사 줄이 단순 주문이라 두 기준 금액이 같아요.</div>'}</section>`;
-  // 전체 상세
-  h+=`<section><h2>주문별 상세 (${rows.length})</h2>${rows.length?detailTable('tAll','상세',rows,pk):''}</section>`;
-  if(exRows.length) h+=`<section><h2>제외된 줄 (${exRows.length})</h2><p class="desc">집계에 들어가지 않은 줄이에요. 확인용으로만 보여요.</p>${detailTable('tEx','제외',exRows,()=>'')}</section>`;
-  h+=`<div class="btnrow"><button class="primary" onclick="exportXlsx()">📥 엑셀로 내려받기 (세무 담당자 전달용)</button><button onclick="window.print()">🖨️ 인쇄 / PDF</button></div>`;
+  if(ps.length) h+=`<section><h2>상품명별 매출</h2><p class="desc">위사 상품명 그대로 나열 · 고객 이름이 들어간 개별 결제 상품도 여기 나와요</p><div class="tblwrap"><table id="tProd" data-sheet="상품별"><thead><tr><th class="l">상품명</th><th>주문 수</th><th>수량</th><th class="pick">매출</th></tr></thead><tbody>`+
+    ps.map(([n,p])=>`<tr><td class="l">${esc(n)}</td><td>${p.n}</td><td>${p.qty.toLocaleString()}</td><td class="pick">${won(p.sale)}</td></tr>`).join('')+`</tbody><tfoot><tr><td class="l">합계</td><td>${rows.length}</td><td>${T.qty.toLocaleString()}</td><td class="pick">${won(T.sale)}</td></tr></tfoot></table></div></section>`;
+  // 위사 취소·환불 (환불일 기준, 메모)
+  const rf=rows.filter(r=>r.wref>0);
+  if(rf.length){ const byR={}; rf.forEach(r=>{ const k=(r.rdate||'날짜 없음').slice(0,7); const x=byR[k]=byR[k]||{n:0,a:0}; x.n++; x.a+=r.wref; });
+    h+=`<section><h2>위사 취소·환불 기록 (환불일 기준 · 매출에서 빼지 않음)</h2><p class="desc">위사에서 취소·부분취소·교환으로 줄어든 금액이에요. 계좌·예치금으로 따로 환불한 건은 위사에 안 남아서 여기 없어요 → 환불대장 기준으로 보세요.</p>
+      <div class="tblwrap"><table id="tRef" data-sheet="위사환불(메모)" class="detail"><thead><tr><th class="l">환불월</th><th>건수</th><th>금액</th></tr></thead><tbody>`+
+      Object.keys(byR).sort().map(k=>`<tr><td class="l">${k}</td><td>${byR[k].n}</td><td>${won(byR[k].a)}</td></tr>`).join('')+`</tbody><tfoot><tr><td class="l">합계</td><td>${rf.length}</td><td>${won(T.wref)}</td></tr></tfoot></table></div></section>`; }
+  // 상품명 목록 (포함/제외 고르기)
+  const nm={}; all.filter(r=>!r.unpaid).forEach(r=>{ const x=nm[r.name]=nm[r.name]||{n:0,sale:0,ex:r.ex,why:r.why,cat:r.cat}; x.n++; x.sale+=r.sale; });
+  window.__names=Object.keys(nm).sort((a,b)=>(nm[b].ex-nm[a].ex)||nm[b].sale-nm[a].sale);
+  h+=`<section class="noprint"><h2>자사로 잡힌 상품명 (포함 / 제외 고르기)</h2><p class="desc">입점사가 비어 있어 자사로 잡힌 상품명이에요. 상품명에 '${esc($('#ownCat').value)}'가 없거나 제외 키워드가 있으면 자동으로 빠지고, 체크로 직접 바꿀 수 있어요 (이 브라우저에 기억).</p>
+    <div class="tblwrap"><table class="detail"><thead><tr><th class="nw">포함</th><th class="l">상품명</th><th class="nw">대분류</th><th>주문 수</th><th>금액</th><th class="l">이유</th></tr></thead><tbody>`+
+    window.__names.map((n,i)=>`<tr${nm[n].ex?' style="color:var(--color-text-muted)"':''}><td class="nw"><input type="checkbox" ${nm[n].ex?'':'checked'} onchange="toggleName(${i},this.checked)"></td><td class="l name">${esc(n)}</td><td class="nw">${esc(nm[n].cat)}</td><td>${nm[n].n}</td><td>${won(nm[n].sale)}</td><td class="l">${esc(nm[n].why)}</td></tr>`).join('')+
+    `</tbody></table></div>${Object.keys(OVR).length?`<div class="btnrow"><button onclick="OVR={};saveOvr();render()">직접 고른 것 모두 되돌리기</button></div>`:''}</section>`;
+  // 확인 필요 / 상세 / 제외
+  const flagged=rows.filter(r=>r.tags.some(t=>t!=='다른 입점사와 섞인 주문'));
+  h+=`<section><h2>확인이 필요한 주문 (${flagged.length})</h2><p class="desc">교환·취소·쿠폰·예치금이 섞인 주문이에요.</p>${flagged.length? detailTable('tFlag','확인필요',flagged) : '<div class="empty">없어요</div>'}</section>`;
+  h+=`<section><h2>주문별 상세 (${rows.length})</h2><p class="desc">회계 전달용 원장이에요. 엑셀의 '상세' 시트로 들어가요.</p>${rows.length?detailTable('tAll','상세',rows):''}</section>`;
+  if(exRows.length) h+=`<section><h2>제외된 줄 (${exRows.length})</h2><p class="desc">자사상품 매출에 넣지 않은 줄이에요 (미입금 취소, 자사상품이 아닌 상품 등).</p>${detailTable('tEx','제외',exRows,true)}</section>`;
+  h+=`<div class="btnrow"><button class="primary" onclick="exportXlsx()">📥 엑셀로 내려받기 (회계 전달용)</button><button onclick="window.print()">🖨️ 인쇄 / PDF</button></div>`;
   $('#out').innerHTML=h;
 }
-function detailTable(id,sheet,rows,pk){
-  return `<div class="tblwrap"><table id="${id}" data-sheet="${sheet}" class="detail"><thead><tr><th class="nw">주문일</th><th class="nw">주문번호</th><th class="l">상품명</th><th>수량</th><th>상품총액</th><th>쿠폰·할인</th><th>취소</th><th${pk('sale')}>매출 기준</th><th>자사 비율</th><th>예치금·적립금 몫</th><th${pk('paid')}>예치금 차감(참고)</th><th class="nw">결제수단</th><th class="nw">상태</th><th class="l">확인</th></tr></thead><tbody>`+
-    rows.map(r=>`<tr${r.tags.length?' class="flag"':''}><td class="nw">${r.date}</td><td class="nw">${esc(r.no)}</td><td class="l name">${esc(r.name)}</td><td>${r.qty}</td><td>${won(r.tot)}</td><td>${won(r.disc)}</td><td>${won(r.cancel)}</td><td${pk('sale')}>${won(r.sale)}</td><td>${(r.ratio*100).toFixed(1)}%</td><td>${won(r.depShare)}</td><td${pk('paid')}>${won(r.paid)}</td><td class="nw">${esc(r.method)}</td><td class="nw">${esc(r.st)}</td><td class="l">${r.tags.map(t=>`<span class="tag">${t}</span>`).join('')}</td></tr>`).join('')+
+function detailTable(id,sheet,rows,showWhy){
+  return `<div class="tblwrap"><table id="${id}" data-sheet="${sheet}" class="detail"><thead><tr><th class="nw">주문일</th><th class="nw">주문번호</th><th class="l">상품명</th><th>수량</th><th class="pick">매출</th><th>그중 예치금</th><th>위사 취소·환불</th><th class="nw">환불일</th><th class="nw">결제수단</th><th class="nw">상태</th><th class="l">${showWhy?'제외 이유':'확인'}</th></tr></thead><tbody>`+
+    rows.map(r=>`<tr${!showWhy&&r.tags.some(t=>t!=='다른 입점사와 섞인 주문')?' class="flag"':''}><td class="nw">${r.date}</td><td class="nw">${esc(r.no)}</td><td class="l name">${esc(r.name)}</td><td>${r.qty}</td><td class="pick">${won(r.sale)}</td><td>${won(r.depShare)}</td><td>${won(r.wref)}</td><td class="nw">${r.rdate}</td><td class="nw">${esc(r.method)}</td><td class="nw">${esc(r.st)}</td><td class="l">${showWhy?esc(r.why):r.tags.map(t=>`<span class="tag">${t}</span>`).join('')}</td></tr>`).join('')+
     `</tbody></table></div>`;
 }
 function exportXlsx(){
@@ -299,8 +341,7 @@ function exportXlsx(){
   $('#from').value=y+'-01'; const p=new Date(y,d.getMonth()-1,1); $('#to').value=p.getFullYear()+'-'+pad(p.getMonth()+1);
   // 예전 기본값('근조3단')만 기억된 경우는 새 기본값으로
   try{ const k=localStorage.getItem('vat.exKw'); if(k!=null && k.trim()!=='근조3단') $('#exKw').value=k; }catch(e){}
-  ['from','to','ownName','exKw'].forEach(id=>$('#'+id).addEventListener('input',()=>{ if(id==='exKw') saveOvr(); render(); }));
-  document.querySelectorAll('input[name=basis]').forEach(r=>r.addEventListener('change',render));
+  ['from','to','ownName','exKw','ownCat'].forEach(id=>$('#'+id).addEventListener('input',()=>{ if(id==='exKw') saveOvr(); render(); }));
 })();
 </script>
 </body>
