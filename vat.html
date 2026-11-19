@@ -5,7 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>자사상품 매출 집계 · 베스트꽃자재연구소</title>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%231F3864'/%3E%3Crect x='7' y='17' width='4.5' height='8' rx='1' fill='%235B9BD5'/%3E%3Crect x='13.75' y='11' width='4.5' height='14' rx='1' fill='%2370AD47'/%3E%3Crect x='20.5' y='6' width='4.5' height='19' rx='1' fill='%23FFC000'/%3E%3C/svg%3E">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<!-- 엑셀 읽기·쓰기: SheetJS 0.18.5 기반, 셀 꾸밈(색·글꼴) 지원판 -->
+<script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
 <style>
   :root{
     --color-primary:#223B65; --color-primary-soft:#EDF2F9; --color-positive:#22865B; --color-negative:#C54B4B;
@@ -312,7 +313,7 @@ function render(){
       `</tbody><tfoot><tr><td class="l">합계</td>${METH.map(mm=>`<td>${won(cell(mm))}</td>`).join('')}<td>${won(T.sale)}</td></tr></tfoot></table></div></section>`;
   }
   // 상품별
-  const byP={}; rows.forEach(r=>{ const p=byP[r.name]=byP[r.name]||{n:0,qty:0,sale:0}; p.n++; p.qty+=r.qty; p.sale+=r.sale; });
+  const byP={}; rows.forEach(r=>{ const bn=r.name.split(' → 교환 후:')[0]; const p=byP[bn]=byP[bn]||{n:0,qty:0,sale:0}; p.n++; p.qty+=r.qty; p.sale+=r.sale; });
   const ps=Object.entries(byP).sort((a,b)=>b[1].sale-a[1].sale);
   if(ps.length) h+=`<section><h2>상품명별 매출</h2><p class="desc">위사 상품명 그대로 나열 · 고객 이름이 들어간 개별 결제 상품도 여기 나와요</p><div class="tblwrap"><table id="tProd" data-sheet="상품별"><thead><tr><th class="l">상품명</th><th>주문 수</th><th>수량</th><th class="pick">매출</th></tr></thead><tbody>`+
     ps.map(([n,p])=>`<tr><td class="l">${esc(n)}</td><td>${p.n}</td><td>${p.qty.toLocaleString()}</td><td class="pick">${won(p.sale)}</td></tr>`).join('')+`</tbody><tfoot><tr><td class="l">합계</td><td>${rows.length}</td><td>${T.qty.toLocaleString()}</td><td class="pick">${won(T.sale)}</td></tr></tfoot></table></div></section>`;
@@ -334,7 +335,7 @@ function render(){
   h+=`<section><h2>위사와 대조 ${flagged.length?`· 확인 필요 ${flagged.length}건`:'· 이상 없음 ✅'}</h2><p class="desc">주문마다 위사 주문서의 실결제가 '상품 실결제 합계 + 배송비 − 예치금 − 적립금'과 맞는지 확인했어요. ${okN}건 일치.${(()=>{const u=new Set(rows.filter(r=>r.tags.includes('대조 불가: 다른 상품 줄 없음')).map(r=>r.no)).size; return u?` <b>${u}건은 대조 불가</b>: 다른 입점사 상품과 같이 산 주문인데, 넣은 주문상품 파일에 그 상품 줄이 없어요 (자사 상품만 걸러 내려받은 파일 등). 전체 상품이 들어간 주문상품 파일을 넣으면 대조돼요.`:''})()} 교환·취소·쿠폰·예치금 표시는 참고용이라 맞으면 따로 볼 필요 없어요.</p>${flagged.length? detailTable('tFlag','확인필요',flagged) : ''}${(()=>{const u=rows.filter(r=>r.tags.includes('대조 불가: 다른 상품 줄 없음')); return u.length?`<details style="margin-top:10px"><summary style="cursor:pointer;font-size:13px;color:var(--color-primary)">대조 불가 주문 ${new Set(u.map(r=>r.no)).size}건 보기</summary><div style="margin-top:8px">${detailTable('tNoChk','대조불가',u)}</div></details>`:'';})()}</section>`;
   h+=`<section><h2>주문별 상세 (${rows.length})</h2><p class="desc">회계 전달용 원장이에요. 엑셀의 '상세' 시트로 들어가요.</p>${rows.length?detailTable('tAll','상세',rows):''}</section>`;
   if(exRows.length) h+=`<section><h2>제외된 줄 (${exRows.length})</h2><p class="desc">자사상품 매출에 넣지 않은 줄이에요 (미입금 취소, 자사상품이 아닌 상품 등).</p>${detailTable('tEx','제외',exRows,true)}</section>`;
-  h+=`<div class="btnrow"><button class="primary" onclick="exportXlsx()">📥 엑셀로 내려받기 (회계 전달용)</button><button onclick="window.print()">🖨️ 인쇄 / PDF</button></div>`;
+  h+=`<div class="btnrow"><button class="primary" onclick="exportXlsx()">📥 엑셀로 내려받기</button><button onclick="window.print()">🖨️ 인쇄 / PDF</button></div>`;
   $('#out').innerHTML=h;
 }
 function detailTable(id,sheet,rows,showWhy){
@@ -342,60 +343,81 @@ function detailTable(id,sheet,rows,showWhy){
     rows.map(r=>`<tr${!showWhy&&r.issues&&r.issues.length?' class="flag"':''}><td class="nw">${r.date}</td><td class="nw">${esc(r.no)}</td><td class="l name">${esc(r.name)}</td><td>${r.qty}</td><td class="pick">${won(r.sale)}</td><td>${won(r.depShare)}</td><td>${won(r.wref)}</td><td class="nw">${r.rdate}</td><td class="nw">${esc(r.method)}</td><td class="nw">${esc(r.st)}</td><td class="l">${showWhy?esc(r.why):(r.issues||[]).map(t=>`<span class="tag">⚠ ${t}</span>`).join('')+r.tags.map(t=>`<span class="tag" style="background:#F1F3F6;color:var(--color-text-muted)">${t}</span>`).join('')}</td></tr>`).join('')+
     `</tbody></table></div>`;
 }
-/* 회계 전달용 엑셀: 제목·기준 줄, 천 단위 쉼표, 열 너비, 필터, 합계 줄 */
+/* 엑셀 보고서: 제목 · 남색 제목 줄 · 천 단위 쉼표 · 합계 줄 강조 · 맑은 고딕 */
 function exportXlsx(){
   const all=compute(), rows=all.filter(r=>!r.ex), exRows=all.filter(r=>r.ex);
   const from=$('#from').value, to=$('#to').value, period=`${from||'처음'} ~ ${to||'끝'}`;
-  const NOTE='매출 = 주문 당시 고객 결제액 (쿠폰 차감 · 예치금 포함 · 위사 주문일 기준). 위사 취소·환불은 빼지 않고 메모로만 표시';
   const wb=XLSX.utils.book_new();
   const sum=(a,f)=>a.reduce((s,r)=>s+f(r),0), R=n=>Math.round(n);
-  // 시트 하나 만들기: 제목 2줄 + 빈 줄 + 표. money: 금액 열 번호, total: 합계 줄
-  function sheet(name,title,head,body,{money=[],pct=[],total=null,widths=[],filter=false,after=null}={}){
-    const aoa=[[title],[`기간: ${period} · ${NOTE}`],[],head,...body]; if(total) aoa.push(total);
-    let startAfter=0; if(after){ aoa.push([]); startAfter=aoa.length; aoa.push(...after.rows); }
+  const F='맑은 고딕', NAVY='1F3864', LINE='C9D1DD';
+  const thin={style:'thin',color:{rgb:LINE}}, box={top:thin,bottom:thin,left:thin,right:thin};
+  const ST={
+    title:{font:{name:F,sz:16,bold:true,color:{rgb:NAVY}}},
+    sub:{font:{name:F,sz:10,color:{rgb:'67717E'}}},
+    head:{font:{name:F,sz:10,bold:true,color:{rgb:'FFFFFF'}},fill:{fgColor:{rgb:NAVY}},alignment:{horizontal:'center',vertical:'center',wrapText:true},border:box},
+    key:{font:{name:F,sz:10},fill:{fgColor:{rgb:'DCE6F1'}},alignment:{vertical:'center'},border:box},
+    txt:{font:{name:F,sz:10},alignment:{vertical:'center'},border:box},
+    num:{font:{name:F,sz:10},alignment:{horizontal:'right',vertical:'center'},border:box,numFmt:'#,##0'},
+    pct:{font:{name:F,sz:10},alignment:{horizontal:'right',vertical:'center'},border:box,numFmt:'0.0%'},
+    tot:{font:{name:F,sz:10,bold:true,color:{rgb:NAVY}},fill:{fgColor:{rgb:'EDF2F9'}},alignment:{vertical:'center'},border:{...box,top:{style:'medium',color:{rgb:NAVY}}}},
+    warn:{fill:{fgColor:{rgb:'FFF4DF'}}},
+  };
+  const put=(ws,r,c,s)=>{ const a=XLSX.utils.encode_cell({r,c}); if(!ws[a]) ws[a]={t:'s',v:''}; ws[a].s=s; };
+  /* 표 하나를 ws에 스타일 입히기: top=제목 줄 행, n=본문 행 수, total 여부, money/pct 열 */
+  function styleTable(ws,top,head,n,{money=[],pct=[],total=false,warnRows=[]}){
+    head.forEach((_,c)=>put(ws,top,c,ST.head));
+    for(let i=0;i<n;i++){ const r=top+1+i, w=warnRows.includes(i);
+      head.forEach((_,c)=>{ let s=c===0?ST.key:money.includes(c)?ST.num:pct.includes(c)?ST.pct:ST.txt; if(w&&c>0) s={...s,fill:ST.warn.fill}; put(ws,r,c,s); }); }
+    if(total){ const r=top+1+n; head.forEach((_,c)=>put(ws,r,c,{...ST.tot,...(money.includes(c)?{numFmt:'#,##0',alignment:{horizontal:'right',vertical:'center'}}:pct.includes(c)?{numFmt:'0.0%',alignment:{horizontal:'right',vertical:'center'}}:{})})); }
+  }
+  function sheet(name,title,head,body,{money=[],pct=[],total=null,widths=[],filter=false,after=null,warnRows=[]}={}){
+    const aoa=[[title],[`기간: ${period}`],[],head,...body]; if(total) aoa.push(total);
+    let aTop=0; if(after){ aoa.push([],[]); aTop=aoa.length; aoa.push(after.head,...after.body); if(after.total) aoa.push(after.total); }
     const ws=XLSX.utils.aoa_to_sheet(aoa);
-    const hr=3, last=hr+body.length+(total?1:0);
-    const fmt=(r0,r1,cols,z)=>{ for(let r=r0;r<=r1;r++) cols.forEach(c=>{ const a=XLSX.utils.encode_cell({r,c}); if(ws[a]&&typeof ws[a].v==='number') ws[a].z=z; }); };
-    fmt(hr+1,last,money,'#,##0'); fmt(hr+1,last,pct,'0.0%');
-    if(after){ fmt(startAfter+1,startAfter+after.rows.length-1,after.money||[],'#,##0'); }
-    ws['!cols']=head.map((h,i)=>({wch:widths[i]||Math.max(10,String(h).length*2+2)}));
-    ws['!merges']=[{s:{r:0,c:0},e:{r:0,c:Math.max(0,head.length-1)}},{s:{r:1,c:0},e:{r:1,c:Math.max(0,head.length-1)}}];
-    if(filter && body.length) ws['!autofilter']={ref:XLSX.utils.encode_range({s:{r:hr,c:0},e:{r:hr+body.length,c:head.length-1}})};
+    put(ws,0,0,ST.title); put(ws,1,0,ST.sub);
+    styleTable(ws,3,head,body.length,{money,pct,total:!!total,warnRows});
+    if(after) styleTable(ws,aTop,after.head,after.body.length,{money:after.money,total:!!after.total});
+    const w=Math.max(head.length, after?after.head.length:0);
+    ws['!cols']=[...Array(w)].map((_,i)=>({wch:widths[i]||14}));
+    ws['!rows']=[{hpt:26},{hpt:16},{hpt:8},{hpt:30}];
+    if(filter && body.length) ws['!autofilter']={ref:XLSX.utils.encode_range({s:{r:3,c:0},e:{r:3+body.length,c:head.length-1}})};
     XLSX.utils.book_append_sheet(wb,ws,name);
   }
   const T={sale:sum(rows,r=>r.sale), qty:sum(rows,r=>r.qty), dep:sum(rows,r=>r.depShare), wref:sum(rows,r=>r.wref), ord:new Set(rows.map(r=>r.no)).size};
   // 1. 월별
   const ms=[...new Set(rows.map(r=>r.ym))].sort();
   const mRow=k=>{ const x=rows.filter(r=>r.ym===k), s=sum(x,r=>r.sale); return [k,new Set(x.map(r=>r.no)).size,sum(x,r=>r.qty),R(s),R(s/1.1),R(s-s/1.1),R(sum(x,r=>r.depShare)),R(sum(x,r=>r.wref))]; };
-  sheet('월별','자사상품 월별 매출',['월','주문 수','수량(박스)','매출(원)','공급가액(원)','부가세(원)','그중 예치금(원)','위사 취소·환불 메모(원)'],
-    ms.map(mRow),{money:[3,4,5,6,7],total:['합계',T.ord,T.qty,R(T.sale),R(T.sale/1.1),R(T.sale-T.sale/1.1),R(T.dep),R(T.wref)],widths:[10,9,11,15,15,13,15,22]});
-  // 2. 상품별 (월별 바로 옆)
-  const names=[...new Set(rows.map(r=>r.name))].map(n=>{ const x=rows.filter(r=>r.name===n), s=sum(x,r=>r.sale); return [n,new Set(x.map(r=>r.no)).size,sum(x,r=>r.qty),R(s),T.sale?s/T.sale:0]; }).sort((a,b)=>b[3]-a[3]);
-  sheet('상품별','자사상품 상품명별 매출',['상품명 (위사 그대로)','주문 수','수량(박스)','매출(원)','비중'],names,{money:[3],pct:[4],total:['합계',T.ord,T.qty,R(T.sale),1],widths:[70,9,11,15,8]});
-  // 3. 결제수단별 (+ 월별 × 결제수단)
+  sheet('월별','자사상품 월별 매출',['월','주문 수','수량(박스)','매출(원)','공급가액(원)','부가세(원)','그중 예치금(원)','위사 취소·환불(원)'],
+    ms.map(mRow),{money:[1,2,3,4,5,6,7],total:['합계',T.ord,T.qty,R(T.sale),R(T.sale/1.1),R(T.sale-T.sale/1.1),R(T.dep),R(T.wref)],widths:[11,9,11,15,15,13,15,17]});
+  // 2. 상품별
+  const base=r=>r.name.split(' → 교환 후:')[0];
+  const names=[...new Set(rows.map(base))].map(n=>{ const x=rows.filter(r=>base(r)===n), s=sum(x,r=>r.sale); return [n,new Set(x.map(r=>r.no)).size,sum(x,r=>r.qty),R(s),T.sale?s/T.sale:0]; }).sort((a,b)=>b[3]-a[3]);
+  sheet('상품별','자사상품 상품명별 매출',['상품명','주문 수','수량(박스)','매출(원)','비중'],names,{money:[1,2,3],pct:[4],total:['합계',T.ord,T.qty,R(T.sale),1],widths:[70,9,11,15,9]});
+  // 3. 결제수단별
   const METH=[...new Set(['신용카드','무통장 입금',...rows.map(r=>r.method)])].filter(m=>rows.some(r=>r.method===m));
   const pm=METH.map(m=>{ const x=rows.filter(r=>r.method===m), s=sum(x,r=>r.sale); return [m,new Set(x.map(r=>r.no)).size,R(s),R(sum(x,r=>r.depShare)),R(s/1.1),R(s-s/1.1)]; });
-  const mx=[['월 × 결제수단',...METH,'합계'],...ms.map(k=>[k,...METH.map(m=>R(sum(rows.filter(r=>r.ym===k&&r.method===m),r=>r.sale))),R(sum(rows.filter(r=>r.ym===k),r=>r.sale))]),
-    ['합계',...METH.map(m=>R(sum(rows.filter(r=>r.method===m),r=>r.sale))),R(T.sale)]];
   sheet('결제수단별','자사상품 결제수단별 매출',['결제수단','주문 수','매출(원)','그중 예치금(원)','공급가액(원)','부가세(원)'],pm,
-    {money:[2,3,4,5],total:['합계',T.ord,R(T.sale),R(T.dep),R(T.sale/1.1),R(T.sale-T.sale/1.1)],widths:[16,13,15,15,15,13],after:{rows:mx,money:METH.map((_,i)=>i+1).concat(METH.length+1)}});
-  // 4. 상세 (주문별 원장)
-  const det=r=>[r.date,r.no,r.name,r.qty,R(r.sale),R(r.sale/1.1),R(r.sale-r.sale/1.1),R(r.depShare),r.method,r.st,R(r.wref),r.rdate,
+    {money:[1,2,3,4,5],total:['합계',T.ord,R(T.sale),R(T.dep),R(T.sale/1.1),R(T.sale-T.sale/1.1)],widths:[16,13,15,15,15,13],
+     after:{head:['월',...METH,'합계'],body:ms.map(k=>[k,...METH.map(m=>R(sum(rows.filter(r=>r.ym===k&&r.method===m),r=>r.sale))),R(sum(rows.filter(r=>r.ym===k),r=>r.sale))]),
+       total:['합계',...METH.map(m=>R(sum(rows.filter(r=>r.method===m),r=>r.sale))),R(T.sale)],money:METH.map((_,i)=>i+1).concat(METH.length+1)}});
+  // 4. 상세
+  const det=r=>[r.date,r.no,r.name,r.qty,R(r.sale),R(r.sale/1.1),R(r.sale-r.sale/1.1),R(r.depShare),r.method,r.st,R(r.wref),r.rdate||'',
     [...(r.issues||[]).map(t=>'⚠ '+t),...r.tags].join(', ')];
-  const H=['주문일','주문번호','상품명','수량(박스)','매출(원)','공급가액(원)','부가세(원)','그중 예치금(원)','결제수단','주문상태','위사 취소·환불 메모(원)','환불일','비고'];
-  const W=[11,16,60,10,13,13,11,14,12,10,20,11,40];
-  sheet('상세','자사상품 주문별 상세',H,rows.map(det),{money:[4,5,6,7,10],total:['합계','','',T.qty,R(T.sale),R(T.sale/1.1),R(T.sale-T.sale/1.1),R(T.dep),'','',R(T.wref),'',''],widths:W,filter:true});
-  // 5. 위사 취소·환불 메모 (환불일 기준)
+  const H=['주문일','주문번호','상품명','수량(박스)','매출(원)','공급가액(원)','부가세(원)','그중 예치금(원)','결제수단','주문상태','위사 취소·환불(원)','환불일','비고'];
+  const W=[11,16,58,10,13,13,11,14,12,10,16,11,40], MON=[3,4,5,6,7,10];
+  const warnIdx=(arr)=>arr.map((r,i)=>r.issues&&r.issues.length?i:-1).filter(i=>i>=0);
+  sheet('상세','자사상품 주문별 상세',H,rows.map(det),{money:MON,total:['합계','','',T.qty,R(T.sale),R(T.sale/1.1),R(T.sale-T.sale/1.1),R(T.dep),'','',R(T.wref),'',''],widths:W,filter:true,warnRows:warnIdx(rows)});
+  // 5. 위사 취소·환불 (환불일 기준)
   const rf=rows.filter(r=>r.wref>0).sort((a,b)=>(a.rdate||'')<(b.rdate||'')?-1:1);
-  if(rf.length) sheet('위사환불 메모','위사에서 취소·환불된 금액 (환불일 기준 · 매출에서 빼지 않음)',['환불일','주문일','주문번호','상품명','매출(원)','위사 취소·환불(원)','주문상태'],
-    rf.map(r=>[r.rdate,r.date,r.no,r.name,R(r.sale),R(r.wref),r.st]),{money:[4,5],total:['합계','','','',R(sum(rf,r=>r.sale)),R(T.wref),''],widths:[11,11,16,60,13,17,10],filter:true});
+  if(rf.length) sheet('위사 취소·환불','위사 취소·환불 (환불일 기준)',['환불일','주문일','주문번호','상품명','매출(원)','취소·환불(원)','주문상태'],
+    rf.map(r=>[r.rdate,r.date,r.no,r.name,R(r.sale),R(r.wref),r.st]),{money:[4,5],total:['합계','','','',R(sum(rf,r=>r.sale)),R(T.wref),''],widths:[11,11,16,58,13,15,10],filter:true});
   // 6. 확인 필요 / 대조 불가 / 제외
   const chk=rows.filter(r=>r.issues&&r.issues.length);
-  if(chk.length) sheet('확인 필요','위사 주문서와 금액이 안 맞는 주문',H,chk.map(det),{money:[4,5,6,7,10],widths:W});
+  if(chk.length) sheet('확인 필요','위사 주문서와 금액이 다른 주문',H,chk.map(det),{money:MON,widths:W,warnRows:chk.map((_,i)=>i)});
   const nochk=rows.filter(r=>r.tags.includes('대조 불가: 다른 상품 줄 없음'));
-  if(nochk.length) sheet('대조 불가','다른 입점사 상품 줄이 없어 위사와 대조 못 한 주문 (매출에는 포함)',H,nochk.map(det),{money:[4,5,6,7,10],widths:W});
+  if(nochk.length) sheet('대조 불가','위사와 대조하지 못한 주문',H,nochk.map(det),{money:MON,widths:W});
   if(exRows.length) sheet('제외','자사상품 매출에서 뺀 줄',['주문일','주문번호','상품명','수량','금액(원)','주문상태','제외 이유'],
-    exRows.map(r=>[r.date,r.no,r.name,r.qty,R(r.sale),r.st,r.why]),{money:[4],widths:[11,16,60,8,13,10,34],filter:true});
+    exRows.map(r=>[r.date,r.no,r.name,r.qty,R(r.sale),r.st,r.why]),{money:[3,4],widths:[11,16,58,8,13,10,34],filter:true});
   XLSX.writeFile(wb, `자사상품매출_${from}_${to}.xlsx`);
 }
 (function(){
