@@ -422,7 +422,8 @@ function exportXlsx(){
 }
 (function(){
   const d=new Date(); const y=d.getFullYear();
-  $('#from').value=y+'-01'; const p=new Date(y,d.getMonth()-1,1); $('#to').value=p.getFullYear()+'-'+pad(p.getMonth()+1);
+  // 기본 기간: 올해 1월 ~ 이번 달
+  $('#from').value=y+'-01'; $('#to').value=y+'-'+pad(d.getMonth()+1);
   // 예전 기본값('근조3단')만 기억된 경우는 새 기본값으로
   try{ const k=localStorage.getItem('vat.exKw'); if(k!=null && k.trim()!=='근조3단') $('#exKw').value=k; }catch(e){}
   ['from','to','ownName','exKw','ownCat'].forEach(id=>$('#'+id).addEventListener('input',()=>{ if(id==='exKw') saveOvr(); render(); }));
