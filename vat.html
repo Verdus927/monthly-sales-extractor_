@@ -291,7 +291,8 @@ function render(){
       <div class="kpi"><div class="lbl">참고: 공급가액 / 부가세 (÷ 1.1)</div><div class="val" style="font-size:18px">${won(T.sale/1.1)} / ${won(T.sale-T.sale/1.1)}</div><div class="sub">과세 상품 기준 단순 계산</div></div>
     </div>
     ${missing.length?`<div class="warn">이 기간 중 <b>${missing.join(', ')}</b> 주문상품 기준 자료가 없어요. 그 달 매출은 0으로 보여요.</div>`:''}
-    ${noOrd.length?`<div class="warn">주문번호 기준 파일이 없는 주문 ${noOrd.length}건이 있어요. 같은 기간의 주문번호 기준 파일도 넣어 주세요.</div>`:''}</section>`;
+    ${noOrd.length?`<div class="warn">주문번호 기준 파일이 없는 주문 ${noOrd.length}건이 있어요. 같은 기간의 주문번호 기준 파일도 넣어 주세요.</div>`:''}
+    <div class="btnrow noprint"><button class="primary btn-export" onclick="exportXlsx()">📥 엑셀로 내려받기</button></div></section>`;
   // 월별
   const byM={}; rows.forEach(r=>{ const m=byM[r.ym]=byM[r.ym]||{orders:new Set(),qty:0,sale:0,dep:0,wref:0}; m.orders.add(r.no); m.qty+=r.qty; m.sale+=r.sale; m.dep+=r.depShare; m.wref+=r.wref; });
   const ms=Object.keys(byM).sort();
@@ -335,7 +336,7 @@ function render(){
   h+=`<section><h2>위사와 대조 ${flagged.length?`· 확인 필요 ${flagged.length}건`:'· 이상 없음 ✅'}</h2><p class="desc">주문마다 위사 주문서의 실결제가 '상품 실결제 합계 + 배송비 − 예치금 − 적립금'과 맞는지 확인했어요. ${okN}건 일치.${(()=>{const u=new Set(rows.filter(r=>r.tags.includes('대조 불가: 다른 상품 줄 없음')).map(r=>r.no)).size; return u?` <b>${u}건은 대조 불가</b>: 다른 입점사 상품과 같이 산 주문인데, 넣은 주문상품 파일에 그 상품 줄이 없어요 (자사 상품만 걸러 내려받은 파일 등). 전체 상품이 들어간 주문상품 파일을 넣으면 대조돼요.`:''})()} 교환·취소·쿠폰·예치금 표시는 참고용이라 맞으면 따로 볼 필요 없어요.</p>${flagged.length? detailTable('tFlag','확인필요',flagged) : ''}${(()=>{const u=rows.filter(r=>r.tags.includes('대조 불가: 다른 상품 줄 없음')); return u.length?`<details style="margin-top:10px"><summary style="cursor:pointer;font-size:13px;color:var(--color-primary)">대조 불가 주문 ${new Set(u.map(r=>r.no)).size}건 보기</summary><div style="margin-top:8px">${detailTable('tNoChk','대조불가',u)}</div></details>`:'';})()}</section>`;
   h+=`<section><h2>주문별 상세 (${rows.length})</h2><p class="desc">회계 전달용 원장이에요. 엑셀의 '상세' 시트로 들어가요.</p>${rows.length?detailTable('tAll','상세',rows):''}</section>`;
   if(exRows.length) h+=`<section><h2>제외된 줄 (${exRows.length})</h2><p class="desc">자사상품 매출에 넣지 않은 줄이에요 (미입금 취소, 자사상품이 아닌 상품 등).</p>${detailTable('tEx','제외',exRows,true)}</section>`;
-  h+=`<div class="btnrow"><button class="primary" onclick="exportXlsx()">📥 엑셀로 내려받기</button><button onclick="window.print()">🖨️ 인쇄 / PDF</button></div>`;
+  h+=`<div class="btnrow"><button class="primary btn-export" onclick="exportXlsx()">📥 엑셀로 내려받기</button><button onclick="window.print()">🖨️ 인쇄 / PDF</button></div>`;
   $('#out').innerHTML=h;
 }
 function detailTable(id,sheet,rows,showWhy){
@@ -346,13 +347,14 @@ function detailTable(id,sheet,rows,showWhy){
 /* 엑셀 보고서 (ExcelJS): 1쪽 요약(그래프 포함, A4 한 장) + 월별 · 상품별 · 결제수단별 · 상세 … */
 const loadJs=src=>new Promise((ok,no)=>{ if(document.querySelector(`script[src="${src}"]`)) return ok(); const s=document.createElement('script'); s.src=src; s.onload=ok; s.onerror=()=>no(new Error(src)); document.head.appendChild(s); });
 async function exportXlsx(){
-  const btn=document.querySelector('button.primary'); const old=btn?btn.textContent:''; if(btn){ btn.textContent='엑셀 만드는 중…'; btn.disabled=true; }
+  // 위·아래 내려받기 버튼을 함께 '만드는 중'으로
+  const btns=[...document.querySelectorAll('.btn-export')], old=btns.map(b=>b.textContent); btns.forEach(b=>{ b.textContent='엑셀 만드는 중…'; b.disabled=true; });
   try{
     if(!window.ExcelJS) await loadJs('https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js');
     if(!window.Chart) await loadJs('https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js');
     await buildXlsx();
   }catch(e){ console.error(e); toastMsg('엑셀을 만들지 못했어요. 인터넷 연결을 확인해 주세요.'); }
-  finally{ if(btn){ btn.textContent=old; btn.disabled=false; } }
+  finally{ btns.forEach((b,i)=>{ b.textContent=old[i]; b.disabled=false; }); }
 }
 function toastMsg(m){ alert(m); }
 async function buildXlsx(){
