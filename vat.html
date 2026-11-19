@@ -401,7 +401,7 @@ async function buildXlsx(){
 
   /* ===== 1쪽 요약 (A4 세로 한 장) ===== */
   const ws=wb.addWorksheet('요약',{properties:{tabColor:{argb:NAVY}}});
-  const C=8; [13,11,11,13,13,11,11,13].forEach((w,i)=>ws.getColumn(i+1).width=w);
+  const C=8; [13,10,14,14,14,12,13,14].forEach((w,i)=>ws.getColumn(i+1).width=w);
   ws.mergeCells(1,1,1,C); Object.assign(ws.getCell(1,1),{value:'자사상품 매출 보고서'}); ws.getCell(1,1).font=font({size:20,bold:true,color:{argb:NAVY}}); ws.getRow(1).height=34;
   ws.mergeCells(2,1,2,C); ws.getCell(2,1).value=`기간: ${period}   ·   작성일: ${new Date().toISOString().slice(0,10)}`; ws.getCell(2,1).font=font({color:{argb:MUTED}});
   // 핵심 숫자 4칸 (각 2열)
@@ -409,30 +409,28 @@ async function buildXlsx(){
   kpis.forEach(([lbl,val,fmt],i)=>{ const c1=i*2+1, c2=c1+1;
     ws.mergeCells(4,c1,4,c2); ws.mergeCells(5,c1,6,c2);
     const a=ws.getCell(4,c1), b=ws.getCell(5,c1);
-    a.value=lbl; a.font=font({size:9,color:{argb:MUTED}}); a.alignment={horizontal:'center',vertical:'middle'};
+    a.value=lbl; a.font=font({size:9,color:{argb:MUTED}}); a.alignment={horizontal:'center',vertical:'bottom'};
     b.value=val; if(fmt) b.numFmt=fmt; b.font=font({size: i===1?11:16,bold:true,color:{argb:NAVY}}); b.alignment={horizontal:'center',vertical:'middle'};
     for(let r=4;r<=6;r++) for(let c=c1;c<=c2;c++){ const x=ws.getCell(r,c); x.fill={type:'pattern',pattern:'solid',fgColor:{argb:SOFT}}; x.border={top:r===4?{style:'medium',color:{argb:NAVY}}:undefined,left:c===c1?thin:undefined,right:c===c2?thin:undefined,bottom:r===6?thin:undefined}; } });
-  ws.getRow(5).height=20; ws.getRow(6).height=14;
+  ws.getRow(4).height=26; ws.getRow(5).height=22; ws.getRow(6).height=18;
   // 그래프 (월별 매출)
   ws.mergeCells(8,1,8,C); ws.getCell(8,1).value='월별 매출'; ws.getCell(8,1).font=font({size:12,bold:true,color:{argb:NAVY}});
   const png=chartPng(M);
   const imgId=wb.addImage({base64:png,extension:'png'});
-  ws.addImage(imgId,{tl:{col:0,row:8.2},ext:{width:700,height:270}});
-  for(let r=9;r<=24;r++) ws.getRow(r).height=15;
+  ws.addImage(imgId,{tl:{col:0,row:8.2},ext:{width:760,height:280}});
+  for(let r=9;r<=23;r++) ws.getRow(r).height=15;
   // 월별 표 (요약)
-  let r0=26; ws.mergeCells(r0,1,r0,C); ws.getCell(r0,1).value='월별 표'; ws.getCell(r0,1).font=font({size:12,bold:true,color:{argb:NAVY}});
+  let r0=25; ws.mergeCells(r0,1,r0,C); ws.getCell(r0,1).value='월별 표'; ws.getCell(r0,1).font=font({size:12,bold:true,color:{argb:NAVY}});
   // 요약 표는 열 8개에 맞춰: 월 | 주문 수 | 수량 | 매출 | 공급가액 | 부가세 | 결제: 카드 | 결제: 무통장
   const card=k=>R(sum(rows.filter(r=>r.ym===k&&r.method==='신용카드'),r=>r.sale)), bank=k=>R(sum(rows.filter(r=>r.ym===k&&r.method==='무통장 입금'),r=>r.sale));
   let end=table(ws,r0+1,['월','주문 수','수량(박스)','매출','공급가액','부가세','신용카드','무통장'],M.map(m=>[m.k,m.ord,m.qty,m.sale,m.sup,m.vat,card(m.k),bank(m.k)]),
     {money:[2,3,4,5,6,7,8],total:['합계',T.ord,T.qty,R(T.sale),R(T.sale/1.1),R(T.sale-T.sale/1.1),R(sum(rows.filter(r=>r.method==='신용카드'),r=>r.sale)),R(sum(rows.filter(r=>r.method==='무통장 입금'),r=>r.sale))]});
-  // 상품 TOP 5
-  r0=end+2; ws.mergeCells(r0,1,r0,C); ws.getCell(r0,1).value='상품별 매출 TOP 5'; ws.getCell(r0,1).font=font({size:12,bold:true,color:{argb:NAVY}});
-  const tr=ws.getRow(r0+1); ['상품명','','','','','주문 수','수량(박스)','매출'].forEach((h,i)=>{ const c=tr.getCell(i+1); c.value=h; c.font=font({bold:true,color:{argb:'FFFFFFFF'}}); c.fill={type:'pattern',pattern:'solid',fgColor:{argb:NAVY}}; c.alignment={horizontal:'center',vertical:'middle'}; c.border=box; });
-  ws.mergeCells(r0+1,1,r0+1,5);
-  P.slice(0,5).forEach((p,i)=>{ const rr=r0+2+i; ws.mergeCells(rr,1,rr,5); const vals=[p.n,null,null,null,null,p.ord,p.qty,p.sale];
-    vals.forEach((v,j)=>{ const c=ws.getCell(rr,j+1); if(v!==null) c.value=v; c.font=font({size:9}); c.border=box; if(j>=5){ c.numFmt='#,##0'; c.alignment={horizontal:'right',vertical:'middle'}; } else c.alignment={vertical:'middle',wrapText:true,shrinkToFit:false}; });
-    ws.getRow(rr).height=26; });
-  const lastRow=r0+1+Math.min(5,P.length);
+  // 결제수단별
+  r0=end+2; ws.mergeCells(r0,1,r0,C); ws.getCell(r0,1).value='결제수단별 매출'; ws.getCell(r0,1).font=font({size:12,bold:true,color:{argb:NAVY}});
+  const pmRows=METH.map(m=>{ const x=rows.filter(r=>r.method===m), s=sum(x,r=>r.sale); return [m,new Set(x.map(r=>r.no)).size,R(s),R(sum(x,r=>r.depShare)),R(s/1.1),R(s-s/1.1)]; });
+  end=table(ws,r0+1,['결제수단','주문 수','매출','그중 예치금','공급가액','부가세'],pmRows,
+    {money:[2,3,4,5,6],total:['합계',T.ord,R(T.sale),R(T.dep),R(T.sale/1.1),R(T.sale-T.sale/1.1)]});
+  const lastRow=end;
   ws.pageSetup={paperSize:9,orientation:'portrait',fitToPage:true,fitToWidth:1,fitToHeight:1,horizontalCentered:true,margins:{left:0.4,right:0.4,top:0.5,bottom:0.5,header:0.2,footer:0.2},printArea:`A1:H${lastRow}`};
 
   /* ===== 나머지 시트 ===== */
